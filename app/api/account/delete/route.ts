@@ -69,8 +69,22 @@ export async function DELETE() {
   // Deleting the `users` row cascades to all related tables:
   //   saved_profiles, fueling_results, inscyd_results,
   //   athlete_profiles, subscriptions
+  //
+  // We check for existence first so that a missing Prisma row (e.g. the user
+  // signed up via Supabase but never triggered the app-side user creation) is
+  // treated as "nothing to delete" rather than a fatal error (Prisma P2025).
   try {
-    await prisma.user.delete({ where: { id: userId } });
+    const existingUser = await prisma.user.findUnique({
+      where:  { id: userId },
+      select: { id: true },
+    });
+
+    if (existingUser) {
+      await prisma.user.delete({ where: { id: userId } });
+      console.log(`[DELETE /api/account/delete] Prisma user deleted, cascade complete: ${userId}`);
+    } else {
+      console.log(`[DELETE /api/account/delete] No Prisma user row found for ${userId} — skipping app data deletion`);
+    }
   } catch (err) {
     console.error('[DELETE /api/account/delete] app-data deletion failed:', err);
     return NextResponse.json(
