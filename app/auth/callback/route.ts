@@ -24,7 +24,12 @@ export async function GET(request: Request) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      return NextResponse.redirect(`${origin}${next}`);
+      // Use URL API to safely append extra params (e.g. type=recovery for password reset)
+      // without risking double-encoding or query-string splitting issues.
+      const dest = new URL(`${origin}${next}`);
+      const type = searchParams.get('type');
+      if (type) dest.searchParams.set('type', type);
+      return NextResponse.redirect(dest.toString());
     }
   }
 
