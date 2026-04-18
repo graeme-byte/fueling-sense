@@ -70,7 +70,7 @@ function LoginForm() {
     setLoading(true);
     setError(null);
     await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/callback?next=/login?type=recovery`,
+      redirectTo: `${window.location.origin}/auth/callback?next=/login&type=recovery`,
     });
     // Always show neutral message — never reveal whether the account exists.
     setSent('forgot');
