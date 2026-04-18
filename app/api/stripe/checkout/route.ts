@@ -46,8 +46,9 @@ export async function POST(req: NextRequest) {
       // is populated in the checkout.session.completed webhook event, removing the
       // null fallback risk in the user upsert.
       customer_email: user.email ?? undefined,
-      metadata:       { userId: user.id, plan: 'pro' },
-      success_url:    `${baseUrl}/calculator/profiler?upgraded=1`,
+      metadata:             { userId: user.id, plan: 'pro' },
+      allow_promotion_codes: true,
+      success_url:          `${baseUrl}/calculator/profiler?upgraded=1`,
       cancel_url:     `${baseUrl}/pricing`,
     });
 
