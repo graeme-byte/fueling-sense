@@ -776,12 +776,50 @@ export default function ProfilerResultsV06({
           <p className="text-sm opacity-80 mt-1">
             Pro gives you ongoing access. Rerun after every training block, see how LT1 and LT2 shift, and watch your zones update as your fitness changes.
           </p>
-          <Link
-            href="/pricing"
-            className="inline-block mt-3 px-5 py-2 bg-white text-violet-700 font-bold rounded-lg text-sm hover:bg-violet-50 transition"
-          >
-            See Pro plans →
-          </Link>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <Link
+              href="/pricing"
+              className="px-5 py-2 bg-white text-violet-700 font-bold rounded-lg text-sm hover:bg-violet-50 transition"
+            >
+              See Pro plans →
+            </Link>
+
+            {/* Save to profile — available to all logged-in users regardless of tier */}
+            {isLoggedIn && (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={onSaveToProfile}
+                  disabled={saveState === 'saving' || saveState === 'saved'}
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold border transition ${
+                    saveState === 'saved'
+                      ? 'bg-white/20 border-white/30 text-white cursor-default'
+                      : saveState === 'error'
+                      ? 'bg-red-500/30 border-red-300/50 text-white hover:bg-red-500/40'
+                      : 'bg-white/10 border-white/30 text-white hover:bg-white/20'
+                  }`}
+                >
+                  {saveState === 'saving' ? 'Saving…'
+                    : saveState === 'saved'  ? '✓ Saved to profile'
+                    : saveState === 'error'  ? 'Save failed — retry'
+                    : hasSavedProfile        ? 'Replace saved profile'
+                    : 'Save to profile'}
+                </button>
+                {saveState === 'idle' && hasSavedProfile && (
+                  <span className="text-xs text-white/60">
+                    This will become your default profile for Fueling Sense
+                  </span>
+                )}
+                {saveState === 'idle' && !hasSavedProfile && (
+                  <span className="text-xs text-white/60">
+                    Prefills Fueling Sense on future logins
+                  </span>
+                )}
+                {saveState === 'error' && saveError && (
+                  <span className="text-xs text-red-200/80">{saveError}</span>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
