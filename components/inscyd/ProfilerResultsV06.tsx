@@ -26,12 +26,6 @@ interface Props {
   sex?:      'Male' | 'Female';
   age?:      number;
   dietType?: string;
-  // Save to profile
-  isLoggedIn:      boolean;
-  hasSavedProfile: boolean;
-  saveState:       'idle' | 'saving' | 'saved' | 'error';
-  saveError:       string;
-  onSaveToProfile: () => void;
 }
 
 // Benchmarking functions imported from lib/benchmarks/athleteBenchmarks.ts
@@ -248,7 +242,6 @@ const ZONE_ROW_BG: Record<string, string> = {
 
 export default function ProfilerResultsV06({
   profile, fuelingPrefill, tier, onSendToFueling, name, sex, age, dietType,
-  isLoggedIn, hasSavedProfile, saveState, saveError, onSaveToProfile,
 }: Props) {
   const { outputs } = profile;
   const { vlamax, vo2max, mlssWatts, lt1Watts, cpWatts } = outputs;
@@ -725,50 +718,12 @@ export default function ProfilerResultsV06({
           <p className="text-sm opacity-80 mt-1">
             Use your LT2 and VLamax to model substrate oxidation and get personalised fueling recommendations for any race or session.
           </p>
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            <button
-              onClick={onSendToFueling}
-              className="px-5 py-2 bg-white text-violet-700 font-bold rounded-lg text-sm hover:bg-violet-50 transition"
-            >
-              Open Fueling Sense →
-            </button>
-
-            {/* Save to profile — only shown to logged-in users */}
-            {isLoggedIn && (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={onSaveToProfile}
-                  disabled={saveState === 'saving' || saveState === 'saved'}
-                  className={`px-4 py-2 rounded-lg text-sm font-semibold border transition ${
-                    saveState === 'saved'
-                      ? 'bg-white/20 border-white/30 text-white cursor-default'
-                      : saveState === 'error'
-                      ? 'bg-red-500/30 border-red-300/50 text-white hover:bg-red-500/40'
-                      : 'bg-white/10 border-white/30 text-white hover:bg-white/20'
-                  }`}
-                >
-                  {saveState === 'saving' ? 'Saving…'
-                    : saveState === 'saved'  ? '✓ Saved to profile'
-                    : saveState === 'error'  ? 'Save failed — retry'
-                    : hasSavedProfile        ? 'Replace saved profile'
-                    : 'Save to profile'}
-                </button>
-                {saveState === 'idle' && hasSavedProfile && (
-                  <span className="text-xs text-white/60">
-                    This will become your default profile for Fueling Sense
-                  </span>
-                )}
-                {saveState === 'idle' && !hasSavedProfile && (
-                  <span className="text-xs text-white/60">
-                    Prefills Fueling Sense on future logins
-                  </span>
-                )}
-                {saveState === 'error' && saveError && (
-                  <span className="text-xs text-red-200/80">{saveError}</span>
-                )}
-              </div>
-            )}
-          </div>
+          <button
+            onClick={onSendToFueling}
+            className="mt-3 px-5 py-2 bg-white text-violet-700 font-bold rounded-lg text-sm hover:bg-violet-50 transition"
+          >
+            Open Fueling Sense →
+          </button>
         </div>
       ) : (
         <div className="bg-gradient-to-r from-violet-600 to-blue-600 rounded-xl p-5 text-white">
@@ -776,50 +731,12 @@ export default function ProfilerResultsV06({
           <p className="text-sm opacity-80 mt-1">
             Pro gives you ongoing access. Rerun after every training block, see how LT1 and LT2 shift, and watch your zones update as your fitness changes.
           </p>
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            <Link
-              href="/pricing"
-              className="px-5 py-2 bg-white text-violet-700 font-bold rounded-lg text-sm hover:bg-violet-50 transition"
-            >
-              See Pro plans →
-            </Link>
-
-            {/* Save to profile — available to all logged-in users regardless of tier */}
-            {isLoggedIn && (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={onSaveToProfile}
-                  disabled={saveState === 'saving' || saveState === 'saved'}
-                  className={`px-4 py-2 rounded-lg text-sm font-semibold border transition ${
-                    saveState === 'saved'
-                      ? 'bg-white/20 border-white/30 text-white cursor-default'
-                      : saveState === 'error'
-                      ? 'bg-red-500/30 border-red-300/50 text-white hover:bg-red-500/40'
-                      : 'bg-white/10 border-white/30 text-white hover:bg-white/20'
-                  }`}
-                >
-                  {saveState === 'saving' ? 'Saving…'
-                    : saveState === 'saved'  ? '✓ Saved to profile'
-                    : saveState === 'error'  ? 'Save failed — retry'
-                    : hasSavedProfile        ? 'Replace saved profile'
-                    : 'Save to profile'}
-                </button>
-                {saveState === 'idle' && hasSavedProfile && (
-                  <span className="text-xs text-white/60">
-                    This will become your default profile for Fueling Sense
-                  </span>
-                )}
-                {saveState === 'idle' && !hasSavedProfile && (
-                  <span className="text-xs text-white/60">
-                    Prefills Fueling Sense on future logins
-                  </span>
-                )}
-                {saveState === 'error' && saveError && (
-                  <span className="text-xs text-red-200/80">{saveError}</span>
-                )}
-              </div>
-            )}
-          </div>
+          <Link
+            href="/pricing"
+            className="inline-block mt-3 px-5 py-2 bg-white text-violet-700 font-bold rounded-lg text-sm hover:bg-violet-50 transition"
+          >
+            See Pro plans →
+          </Link>
         </div>
       )}
 

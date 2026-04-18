@@ -75,9 +75,10 @@ export default function ProfilerPage() {
       return;
     }
 
-    // Post-upgrade: poll until pro or timeout (10 s, every 1.5 s)
-    const POLL_INTERVAL_MS = 1500;
-    const POLL_TIMEOUT_MS  = 10_000;
+    // Post-upgrade: poll until pro or timeout (30 s, every 2 s).
+    // Stripe webhooks in production can take 15–30 s to arrive and process.
+    const POLL_INTERVAL_MS = 2000;
+    const POLL_TIMEOUT_MS  = 30_000;
     const startedAt = Date.now();
     let intervalId: ReturnType<typeof setInterval>;
 
@@ -211,8 +212,14 @@ export default function ProfilerPage() {
         </div>
       )}
       {justUpgraded && upgradeState === 'timeout' && (
-        <div className="bg-amber-100 text-amber-800 text-sm text-center py-2 px-4">
-          We're still confirming your subscription. Please refresh shortly.
+        <div className="bg-amber-100 text-amber-800 text-sm text-center py-2 px-4 flex items-center justify-center gap-3">
+          <span>We&apos;re still confirming your subscription.</span>
+          <button
+            onClick={() => window.location.reload()}
+            className="underline font-semibold hover:text-amber-900 transition"
+          >
+            Refresh now
+          </button>
         </div>
       )}
 
@@ -287,6 +294,48 @@ export default function ProfilerPage() {
             </div>
           )}
 
+          {/* Save result to profile — shown once a calculation exists */}
+          {isLoggedIn && profile && (
+            <div className={`mb-4 px-3 py-2 border rounded-lg text-xs flex items-center justify-between gap-2 ${
+              saveState === 'saved' ? 'bg-green-50 border-green-200'
+              : saveState === 'error' ? 'bg-red-50 border-red-200'
+              : 'bg-gray-50 border-gray-200'
+            }`}>
+              <div className="min-w-0">
+                <p className={`font-semibold leading-tight ${
+                  saveState === 'saved' ? 'text-green-800'
+                  : saveState === 'error' ? 'text-red-800'
+                  : 'text-gray-700'
+                }`}>
+                  {saveState === 'saved'   ? '✓ Saved to profile'
+                    : saveState === 'saving' ? 'Saving…'
+                    : saveState === 'error'  ? 'Save failed'
+                    : hasSavedProfile        ? 'Replace saved profile'
+                    : 'Save to profile'}
+                </p>
+                {saveState === 'idle' && (
+                  <p className="text-gray-400 leading-tight mt-0.5">
+                    {hasSavedProfile
+                      ? 'Replaces your current saved profile'
+                      : 'Prefills Fueling Sense on future logins'}
+                  </p>
+                )}
+                {saveState === 'error' && saveError && (
+                  <p className="text-red-600 leading-tight mt-0.5">{saveError}</p>
+                )}
+              </div>
+              {(saveState === 'idle' || saveState === 'error') && (
+                <button
+                  type="button"
+                  onClick={handleSaveToProfile}
+                  className="shrink-0 text-violet-600 hover:text-violet-800 font-semibold underline transition"
+                >
+                  {saveState === 'error' ? 'Retry' : hasSavedProfile ? 'Replace' : 'Save'}
+                </button>
+              )}
+            </div>
+          )}
+
           <ProfilerInputFormV06
             key={profilerFormKey}
             onSubmit={handleCalculate}
@@ -322,11 +371,6 @@ export default function ProfilerPage() {
               sex={athleteSex}
               age={athleteAge}
               dietType={athleteDiet}
-              isLoggedIn={isLoggedIn}
-              hasSavedProfile={hasSavedProfile}
-              saveState={saveState}
-              saveError={saveError}
-              onSaveToProfile={handleSaveToProfile}
             />
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-3">
