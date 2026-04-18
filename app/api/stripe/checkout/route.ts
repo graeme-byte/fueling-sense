@@ -28,6 +28,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid price selected.' }, { status: 400 });
   }
 
+  // Resolve a valid base URL — prefer the explicit app URL, fall back to the
+  // Vercel-injected deployment URL (no scheme), then validate before use.
+  const rawBase = process.env.NEXT_PUBLIC_APP_URL
+    ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined);
+  const baseUrl = rawBase?.startsWith('http') ? rawBase : rawBase ? `https://${rawBase}` : undefined;
+
+  if (!baseUrl) {
+    throw new Error('NEXT_PUBLIC_APP_URL is not set correctly');
+  }
+
   try {
     const session = await stripe.checkout.sessions.create({
       mode:           'subscription',
@@ -37,8 +47,8 @@ export async function POST(req: NextRequest) {
       // null fallback risk in the user upsert.
       customer_email: user.email ?? undefined,
       metadata:       { userId: user.id, plan: 'pro' },
-      success_url:    `${process.env.NEXT_PUBLIC_APP_URL}/calculator/profiler?upgraded=1`,
-      cancel_url:     `${process.env.NEXT_PUBLIC_APP_URL}/pricing`,
+      success_url:    `${baseUrl}/calculator/profiler?upgraded=1`,
+      cancel_url:     `${baseUrl}/pricing`,
     });
 
     return NextResponse.json({ url: session.url });
