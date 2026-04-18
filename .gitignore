@@ -39,3 +39,17 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+/app/generated/prisma
+
+# project-specific exclusions
+.agents/
+.claude/
+audit/
+control_and_audit_files/
+diagnostics/
+stripe checkout/
+test_case_inputs/
+INSCYD_DATASET.csv
+public/*.mp4
+public/Skool Welcome/

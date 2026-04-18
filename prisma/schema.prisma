@@ -1,0 +1,196 @@
+// Fueling Sense — Prisma Schema
+// Backed by Supabase PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ── User (mirrors Supabase auth.users) ───────────────────────────
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  subscription    Subscription?
+  athleteProfiles AthleteProfile[]
+  inscydResults   InscydResult[]
+  fuelingResults  FuelingResult[]
+  savedProfile    SavedProfile?
+
+  @@map("users")
+}
+
+// ── Subscription ──────────────────────────────────────────────────
+
+model Subscription {
+  id                String    @id @default(uuid())
+  userId            String    @unique @map("user_id")
+  tier              String    @default("free")
+  stripeCustomerId  String?   @map("stripe_customer_id")
+  stripeSubId       String?   @map("stripe_sub_id")
+  stripePriceId     String?   @map("stripe_price_id")
+  currentPeriodEnd  DateTime? @map("current_period_end")
+  cancelAtPeriodEnd Boolean   @default(false) @map("cancel_at_period_end")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}
+
+// ── Athlete Profile ───────────────────────────────────────────────
+
+model AthleteProfile {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  name       String
+  sex        String
+  weightKg   Float    @map("weight_kg")
+  bodyFatPct Float    @map("body_fat_pct")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  inscydResults  InscydResult[]
+  fuelingResults FuelingResult[]
+
+  @@map("athlete_profiles")
+}
+
+// ── Inscyd Result ─────────────────────────────────────────────────
+
+model InscydResult {
+  id               String   @id @default(uuid())
+  userId           String   @map("user_id")
+  athleteProfileId String?  @map("athlete_profile_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  p20sWatts   Float  @map("p20s_watts")
+  // @deprecated — 3PT protocol field; written as 0 for all 4PT sessions. Retained for DB compat.
+  p300Watts   Float  @map("p300_watts")
+  // @deprecated — 3PT protocol field; always null for 4PT sessions. Retained for DB compat.
+  p12minWatts Float? @map("p12min_watts")
+  // 4PT protocol fields (added: audit phase 4)
+  p180Watts   Float? @map("p180_watts")
+  p360Watts   Float? @map("p360_watts")
+  p720Watts   Float? @map("p720_watts")
+
+  bodyMassKg  Float  @map("body_mass_kg")
+  bodyFatPct  Float  @map("body_fat_pct")
+
+  vo2max    Float
+  vlamax    Float
+  ftpWatts  Float  @map("ftp_watts")
+  cpWatts   Float  @map("cp_watts")
+  wPrimeJ   Float  @map("w_prime_j")
+  mlssWatts Float  @map("mlss_watts")
+  lt1Watts  Float  @map("lt1_watts")
+  phenotype String
+
+  resultJson Json @map("result_json")
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  athleteProfile AthleteProfile? @relation(fields: [athleteProfileId], references: [id])
+  fuelingResults FuelingResult[]
+
+  @@map("inscyd_results")
+}
+
+// ── Fueling Result ────────────────────────────────────────────────
+
+// ── Saved Profile ─────────────────────────────────────────────────
+// One row per user. Upserted when the user clicks "Save to profile"
+// after running the metabolic profiler. Used to prefill the fueling
+// calculator on future logins.
+
+model SavedProfile {
+  id            String   @id @default(uuid())
+  userId        String   @unique @map("user_id")
+  modelVersion  String   @default("v0.6") @map("model_version")
+  // ── Profiler source inputs ─────────────────────────────────────
+  // Stored so the Power Profiler form can be prefilled exactly as entered,
+  // without reverse-deriving inputs from outputs.
+  p20Watts      Float?   @map("p20_watts")
+  p300Watts     Float?   @map("p300_watts")
+  p180Watts     Float?   @map("p180_watts")
+  p360Watts     Float?   @map("p360_watts")
+  p720Watts     Float?   @map("p720_watts")
+  // ── Derived outputs ────────────────────────────────────────────
+  lt1Watts      Float    @map("lt1_watts")
+  mlssWatts     Float    @map("mlss_watts")
+  vlamax        Float
+  vo2maxMlKgMin Float?   @map("vo2max_ml_kg_min")
+  cpWatts       Float?   @map("cp_watts")
+  weightKg      Float    @map("weight_kg")
+  bodyFatPct    Float    @map("body_fat_pct")
+  sex           String?
+  phenotype     String?
+  name          String?
+  age           Int?
+  dietType      String?  @map("diet_type")
+  savedAt       DateTime @default(now()) @map("saved_at")
+  resultJson    Json     @map("result_json")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("saved_profiles")
+}
+
+// ── Fueling Result ────────────────────────────────────────────────
+
+model FuelingResult {
+  id               String   @id @default(uuid())
+  userId           String   @map("user_id")
+  inscydResultId   String?  @map("inscyd_result_id")
+  athleteProfileId String?  @map("athlete_profile_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  // ── Input scalars ──────────────────────────────────────────────
+  athleteLevel  String  @map("athlete_level")
+  dietType      String  @map("diet_type")
+  eventCategory String? @map("event_category")   // added: audit phase 1
+  sex           String? @map("sex")               // added: audit phase 1
+  weightKg      Float?  @map("weight_kg")         // added: audit phase 1
+  bodyFatPct    Float?  @map("body_fat_pct")      // added: audit phase 1
+  vlamax        Float?  @map("vlamax")            // added: audit phase 1
+
+  // ── Metabolic anchors ──────────────────────────────────────────
+  mlssWatts Float @map("mlss_watts")
+  lt1Watts  Float @map("lt1_watts")
+
+  // ── Target inputs ──────────────────────────────────────────────
+  targetWatts Float @map("target_watts")
+  targetChoGH Float @map("target_cho_g_h")
+
+  // ── Derived outputs ────────────────────────────────────────────
+  grossEfficiency Float? @map("gross_efficiency")  // added: audit phase 1
+  fatmaxWkg       Float  @map("fatmax_wkg")
+  fatmaxWatts     Float? @map("fatmax_watts")      // added: audit phase 1
+  carb90Watts     Float? @map("carb90_watts")      // added: audit phase 1; null when not found
+  carb90Found     Boolean @default(false) @map("carb90_found")  // added: audit phase 1
+  targetPctLt2    Float? @map("target_pct_lt2")    // added: audit phase 1
+  choGphAtTarget  Float? @map("cho_gph_at_target") // added: audit phase 1
+  choRequiredGH   Float  @map("cho_required_g_h")
+  choGapGH        Float  @map("cho_gap_g_h")       // now signed (planned − required): audit phase 2
+
+  // ── Strategy classification ────────────────────────────────────
+  strategyLabel   String? @map("strategy_label")   // added: audit phase 1
+  pacingAlignment String? @map("pacing_alignment") // added: audit phase 1
+
+  resultJson Json @map("result_json")
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  inscydResult   InscydResult?   @relation(fields: [inscydResultId], references: [id])
+  athleteProfile AthleteProfile? @relation(fields: [athleteProfileId], references: [id])
+
+  @@map("fueling_results")
+}
