@@ -6,9 +6,10 @@ const LS_KEY = 'fuelingSense.hideGettingStarted';
 
 interface Props {
   context: 'profiler' | 'fueling';
+  isProUser: boolean;
 }
 
-export default function GettingStartedPanel({ context }: Props) {
+export default function GettingStartedPanel({ context, isProUser }: Props) {
   // Start hidden to avoid a flash before localStorage is read.
   const [hidden,           setHidden]           = useState(true);
   const [showInstructions, setShowInstructions] = useState(false);
@@ -61,7 +62,9 @@ export default function GettingStartedPanel({ context }: Props) {
       {/* ── Welcome section — always visible ─────────────────────── */}
       <div className="px-4 py-4">
         <div className="flex items-start justify-between gap-4 mb-3">
-          <p className="text-sm font-bold text-gray-800">Welcome to Fueling Sense PRO</p>
+          <p className="text-sm font-bold text-gray-800">
+            {isProUser ? 'Welcome to Fueling Sense PRO' : 'Welcome to Fueling Sense'}
+          </p>
           <button
             onClick={dismiss}
             className="text-xs text-gray-400 hover:text-gray-600 transition underline underline-offset-2 shrink-0"
@@ -71,7 +74,7 @@ export default function GettingStartedPanel({ context }: Props) {
         </div>
 
         <div className="space-y-2 text-xs text-gray-600 leading-relaxed">
-          <p>Congratulations on upgrading.</p>
+          {isProUser && <p>Congratulations on upgrading.</p>}
           <p>
             You&apos;re now a few steps away from building a personalised race fueling and pacing strategy
             based on your physiology — not guesswork.

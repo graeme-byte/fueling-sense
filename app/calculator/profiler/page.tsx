@@ -39,7 +39,9 @@ export default function ProfilerPage() {
   const [savedProfileData, setSavedProfileData] = useState<SavedProfileData | null>(null);
   const [profileLoaded,    setProfileLoaded]    = useState(false);
   const [profilerFormKey,  setProfilerFormKey]  = useState(0);
-  // Derived
+  // Derived — single source of truth for Pro entitlement.
+  // Always comes from the /api/me response (DB subscription row), never from URL params.
+  const isPro           = tier === 'pro';
   const hasSavedProfile = !!savedProfileData;
   // Save-to-profile state
   const [saveState,  setSaveState]  = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -222,12 +224,12 @@ export default function ProfilerPage() {
           <p className="text-sm font-bold text-gray-800 leading-tight">Metabolic Profiler</p>
           <p className="text-xs text-gray-400">VO2max · VLamax · LT1 · LT2 · Critical Power</p>
         </div>
-        {tier === 'pro' ? (
+        {isPro ? (
           <span className="text-xs font-bold bg-amber-100 text-amber-700 px-3 py-1 rounded-full">✓ PRO</span>
         ) : (
           <span className="text-xs font-bold bg-green-100 text-green-700 px-3 py-1 rounded-full">FREE</span>
         )}
-        {tier === 'pro' && <ToolSwitcher active="profiler" />}
+        {isPro && <ToolSwitcher active="profiler" />}
         <div className="ml-auto flex items-center gap-3">
           <Link href="/support" className="text-xs text-gray-400 hover:text-gray-700 transition">Support</Link>
           {isLoggedIn && <LogoutButton className="text-xs text-gray-400 hover:text-gray-700 transition" />}
@@ -309,7 +311,7 @@ export default function ProfilerPage() {
 
         {/* Right: Results panel */}
         <main className="flex-1 p-5 overflow-y-auto">
-          <GettingStartedPanel context="profiler" />
+          <GettingStartedPanel context="profiler" isProUser={isPro} />
           {profile && fuelingPrefill ? (
             <ProfilerResultsV06
               profile={profile}

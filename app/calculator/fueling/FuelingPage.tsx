@@ -27,6 +27,7 @@ export default function FuelingCalculatorPage() {
   const { result, loading, setResult, setLoading, setError } = useFuelingStore();
   const searchParams = useSearchParams();
   const [isLoggedIn,       setIsLoggedIn]       = useState(false);
+  const [tier,             setTier]             = useState<'free' | 'pro'>('free');
   const [strategy,         setStrategy]         = useState<FuelingStrategy>({ gels: [], drinks: [], solids: [] });
   const [livePowerW,       setLivePowerW]       = useState<number | null>(null);
   const [savedProfile,     setSavedProfile]     = useState<SavedProfileData | null>(null);
@@ -48,6 +49,9 @@ export default function FuelingCalculatorPage() {
     createClient().auth.getSession().then(async ({ data: { session } }) => {
       setIsLoggedIn(!!session);
       if (!session) return;
+      fetch('/api/me').then(r => r.ok ? r.json() : null).then(d => {
+        if (d?.tier === 'pro') setTier('pro');
+      });
       // Load saved profile and prefill the form if it exists and no INSCYD prefill is active
       const sp = await getSavedProfileAction();
       if (!sp) return;
@@ -200,7 +204,7 @@ export default function FuelingCalculatorPage() {
 
         {/* Right: Results panel */}
         <main className="flex-1 p-5 overflow-y-auto">
-          <GettingStartedPanel context="fueling" />
+          <GettingStartedPanel context="fueling" isProUser={tier === 'pro'} />
           {result ? (
             <FuelingResults
               result={result}
