@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { signIn } from '@/app/actions/auth';
@@ -15,7 +15,11 @@ function LoginForm() {
   const redirectTo   = searchParams.get('redirect') ?? '/calculator/profiler';
   const reason       = searchParams.get('reason');
 
-  const [mode,            setMode]            = useState<Mode>('login');
+  // Initialise to 'reset' when the user arrives back from a password-reset email.
+  // The callback route passes ?type=recovery rather than relying on the
+  // PASSWORD_RECOVERY auth-state event, which does not fire in PKCE flow.
+  const type = searchParams.get('type');
+  const [mode,            setMode]            = useState<Mode>(type === 'recovery' ? 'reset' : 'login');
   const [email,           setEmail]           = useState('');
   const [password,        setPassword]        = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -24,14 +28,6 @@ function LoginForm() {
   const [sent,            setSent]            = useState<'signup' | 'forgot' | null>(null);
 
   const supabase = createClient();
-
-  // Switch to reset-password form when user returns via the email link
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') setMode('reset');
-    });
-    return () => subscription.unsubscribe();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function switchMode(next: Mode) {
     setMode(next);
@@ -56,7 +52,11 @@ function LoginForm() {
       if (result?.error) { setError(result.error); setLoading(false); return; }
       // On success, signIn() calls redirect() server-side — navigation is automatic.
     } else {
-      const { error: signUpError } = await supabase.auth.signUp({ email, password });
+      const { error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+      });
       if (signUpError) { setError(signUpError.message); setLoading(false); return; }
       setSent('signup');
     }
@@ -70,7 +70,7 @@ function LoginForm() {
     setLoading(true);
     setError(null);
     await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/callback?next=/login`,
+      redirectTo: `${window.location.origin}/auth/callback?next=/login?type=recovery`,
     });
     // Always show neutral message — never reveal whether the account exists.
     setSent('forgot');
