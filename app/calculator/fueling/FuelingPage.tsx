@@ -154,25 +154,25 @@ export default function FuelingCalculatorPage() {
       )}
 
       {/* Header */}
-      <header className="bg-white px-6 py-3 flex items-center gap-4 shadow-sm border-b border-gray-100">
+      <header className="bg-white px-4 sm:px-6 py-3 flex items-center gap-3 sm:gap-4 shadow-sm border-b border-gray-100">
         <HeaderLogo href="/calculator/profiler" height={28} width={140} />
-        <span className="text-gray-200 select-none">|</span>
-        <div>
+        <span className="text-gray-200 select-none hidden sm:inline">|</span>
+        <div className="hidden sm:block">
           <p className="text-sm font-bold text-gray-800 leading-tight">Fueling Calculator</p>
           <p className="text-xs text-gray-400">Substrate · Personalised Fueling Recommendations</p>
         </div>
         <span className="text-xs font-bold bg-amber-100 text-amber-700 px-3 py-1 rounded-full">PRO</span>
-        <ToolSwitcher active="fueling" />
+        <span className="hidden sm:block"><ToolSwitcher active="fueling" /></span>
         <div className="ml-auto flex items-center gap-3">
-          <Link href="/support" className="text-xs text-gray-400 hover:text-gray-700 transition">Support</Link>
+          <Link href="/support" className="text-xs text-gray-400 hover:text-gray-700 transition hidden sm:inline">Support</Link>
           {isLoggedIn && <LogoutButton className="text-xs text-gray-400 hover:text-gray-700 transition" />}
         </div>
       </header>
 
-      <div className="flex h-[calc(100vh-64px)]">
+      <div className="flex flex-col lg:flex-row lg:h-[calc(100vh-64px)]">
 
         {/* Left: Input panel */}
-        <aside className="w-72 min-w-64 bg-white border-r border-gray-100 p-5 overflow-y-auto">
+        <aside className="w-full lg:w-72 lg:min-w-64 bg-white border-b lg:border-b-0 lg:border-r border-gray-100 p-5 lg:overflow-y-auto">
 
           {/* Saved profile panel — show load option when not yet prefilled */}
           {savedProfile && !profilePrefilled && (
@@ -204,7 +204,9 @@ export default function FuelingCalculatorPage() {
 
         {/* Right: Results panel */}
         <main className="flex-1 p-5 overflow-y-auto">
-          <GettingStartedPanel context="fueling" isProUser={tier === 'pro'} />
+          <div className="hidden lg:block">
+            <GettingStartedPanel context="fueling" isProUser={tier === 'pro'} />
+          </div>
           {result ? (
             <FuelingResults
               result={result}

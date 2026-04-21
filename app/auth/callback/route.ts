@@ -8,8 +8,8 @@
  *
  * Supabase Dashboard → Authentication → URL Configuration must include
  * this path in the Redirect URL allow-list:
- *   http://localhost:3000/auth/callback
- *   https://fueling-sense.com/auth/callback
+ *   http://localhost:3000/auth/callback       (local dev)
+ *   https://www.fueling-sense.com/auth/callback  (production)
  */
 
 import { NextResponse } from 'next/server';

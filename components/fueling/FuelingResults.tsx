@@ -164,20 +164,20 @@ export default function FuelingResults({
     <div className="space-y-5">
 
       {/* Athlete context header */}
-      <div className="flex items-center gap-2 text-xs text-gray-500 pb-1 border-b border-gray-100">
+      <div className="flex items-center gap-2 text-xs text-gray-500 pb-1 border-b border-gray-100 min-w-0">
         {inputs.name && inputs.name !== 'Athlete' && (
-          <span className="font-semibold text-gray-700">{inputs.name}</span>
+          <span className="font-semibold text-gray-700 truncate min-w-0">{inputs.name}</span>
         )}
         {inputs.sex && (
-          <span className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">{inputs.sex}</span>
+          <span className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 shrink-0">{inputs.sex}</span>
         )}
         {inputs.age && (
-          <span className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">{inputs.age} yrs</span>
+          <span className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 shrink-0">{inputs.age} yrs</span>
         )}
         <button
           onClick={handleExportPdf}
           disabled={exporting}
-          className="ml-auto flex items-center gap-1.5 px-3 py-1 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition disabled:opacity-50"
+          className="ml-auto shrink-0 flex items-center gap-1.5 px-3 py-1 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition disabled:opacity-50"
         >
           {exporting ? (
             <>
@@ -275,7 +275,7 @@ export default function FuelingResults({
             {liveSub.pctLT1 > 0 && ` · ${Math.round(liveSub.pctLT1 * 100)}% LT1`}
           </span>
         </div>
-        <div className="grid grid-cols-3 gap-3 text-sm">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
           <div>
             <p className="text-xs text-gray-400">Metabolic cost</p>
             <p className="font-bold">{liveSub.kcalPerHour} kcal/h</p>

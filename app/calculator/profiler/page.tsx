@@ -223,11 +223,11 @@ export default function ProfilerPage() {
         </div>
       )}
 
-      {/* Header — layout and content unchanged */}
-      <header className="bg-white px-6 py-3 flex items-center gap-4 shadow-sm border-b border-gray-100">
+      {/* Header */}
+      <header className="bg-white px-4 sm:px-6 py-3 flex items-center gap-3 sm:gap-4 shadow-sm border-b border-gray-100">
         <HeaderLogo href="/calculator/profiler" height={28} width={140} />
-        <span className="text-gray-200 select-none">|</span>
-        <div>
+        <span className="text-gray-200 select-none hidden sm:inline">|</span>
+        <div className="hidden sm:block">
           <p className="text-sm font-bold text-gray-800 leading-tight">Metabolic Profiler</p>
           <p className="text-xs text-gray-400">VO2max · VLamax · LT1 · LT2 · Critical Power</p>
         </div>
@@ -236,17 +236,17 @@ export default function ProfilerPage() {
         ) : (
           <span className="text-xs font-bold bg-green-100 text-green-700 px-3 py-1 rounded-full">FREE</span>
         )}
-        {isPro && <ToolSwitcher active="profiler" />}
+        {isPro && <span className="hidden sm:block"><ToolSwitcher active="profiler" /></span>}
         <div className="ml-auto flex items-center gap-3">
-          <Link href="/support" className="text-xs text-gray-400 hover:text-gray-700 transition">Support</Link>
+          <Link href="/support" className="text-xs text-gray-400 hover:text-gray-700 transition hidden sm:inline">Support</Link>
           {isLoggedIn && <LogoutButton className="text-xs text-gray-400 hover:text-gray-700 transition" />}
         </div>
       </header>
 
-      <div className="flex h-[calc(100vh-64px)]">
+      <div className="flex flex-col lg:flex-row lg:h-[calc(100vh-64px)]">
 
         {/* Left: Input panel */}
-        <aside className="w-72 min-w-64 bg-white border-r border-gray-100 p-5 overflow-y-auto">
+        <aside className="w-full lg:w-72 lg:min-w-64 bg-white border-b lg:border-b-0 lg:border-r border-gray-100 p-5 lg:overflow-y-auto">
 
           {/* Saved profile panel */}
           {isLoggedIn && savedProfileData && !profileLoaded && (
@@ -359,8 +359,10 @@ export default function ProfilerPage() {
         </aside>
 
         {/* Right: Results panel */}
-        <main className="flex-1 p-5 overflow-y-auto">
-          <GettingStartedPanel context="profiler" isProUser={isPro} />
+        <main className="flex-1 p-5 lg:overflow-y-auto">
+          <div className="hidden lg:block">
+            <GettingStartedPanel context="profiler" isProUser={isPro} />
+          </div>
           {profile && fuelingPrefill ? (
             <ProfilerResultsV06
               profile={profile}

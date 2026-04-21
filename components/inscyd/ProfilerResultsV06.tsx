@@ -330,20 +330,20 @@ export default function ProfilerResultsV06({
     <div className="space-y-6">
 
       {/* ── Athlete context header + Export PDF ────────────────────── */}
-      <div className="flex items-center gap-2 text-xs text-gray-500 pb-1 border-b border-gray-100">
+      <div className="flex items-center gap-2 text-xs text-gray-500 pb-1 border-b border-gray-100 min-w-0">
         {name && name !== 'Athlete' && (
-          <span className="font-semibold text-gray-700">{name}</span>
+          <span className="font-semibold text-gray-700 truncate min-w-0">{name}</span>
         )}
         {sex && (
-          <span className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">{sex}</span>
+          <span className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 shrink-0">{sex}</span>
         )}
         {age && (
-          <span className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">{age} yrs</span>
+          <span className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 shrink-0">{age} yrs</span>
         )}
         <button
           onClick={handleExportPdf}
           disabled={exporting}
-          className="ml-auto flex items-center gap-1.5 px-3 py-1 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition disabled:opacity-50"
+          className="ml-auto shrink-0 flex items-center gap-1.5 px-3 py-1 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition disabled:opacity-50"
         >
           {exporting ? (
             <>
@@ -357,7 +357,7 @@ export default function ProfilerResultsV06({
       </div>
 
       {/* ── Metric cards ───────────────────────────────────────────── */}
-      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
 
         {/* Free metrics */}
         {freeMetrics.map(m => (
@@ -527,7 +527,7 @@ export default function ProfilerResultsV06({
           <div className="rounded-xl border border-gray-200 shadow-sm bg-white">
             <div className="flex items-center gap-3 px-4 py-3">
               <p className="text-sm font-bold text-gray-800">See How I Stack Up</p>
-              <span className="text-xs text-gray-400">Key physiological determinants of performance and fueling</span>
+              <span className="text-xs text-gray-400 hidden sm:inline">Key physiological determinants of performance and fueling</span>
               {sex && (
                 <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">
                   {sex}{age ? ` · ${age} yrs` : ''}
@@ -550,7 +550,7 @@ export default function ProfilerResultsV06({
                     : ' No sex selected — using general reference bands.'}
                 </p>
 
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
 
                   {/* VLamax */}
                   <div className="rounded-lg border p-3 bg-gray-50">
