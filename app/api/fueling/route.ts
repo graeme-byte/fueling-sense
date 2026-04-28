@@ -110,6 +110,16 @@ export async function POST(req: NextRequest) {
       // Strip denseSubstrateSeries from the persisted blob — it is recomputable from
       // fatmaxWkg + xf + xz + mlssWatts + ge and inflates row size significantly.
       // The full result (including denseSubstrateSeries) is still returned to the UI below.
+      if (athleteProfileId) {
+        const owns = await prisma.athleteProfile.findFirst({
+          where: { id: athleteProfileId, userId: user.id },
+          select: { id: true },
+        });
+        if (!owns) {
+          return NextResponse.json({ error: 'athlete_profile not found' }, { status: 404 });
+        }
+      }
+
       const { denseSubstrateSeries: _omit, ...resultForDb } = result;
       const saved = await prisma.fuelingResult.create({
         data: {

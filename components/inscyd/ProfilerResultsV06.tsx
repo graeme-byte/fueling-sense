@@ -26,6 +26,11 @@ interface Props {
   sex?:      'Male' | 'Female';
   age?:      number;
   dietType?: string;
+  // Save-to-profile — wired to the page-level handler; mobile CTA only
+  onSaveToProfile?: () => void;
+  saveState?:       'idle' | 'saving' | 'saved' | 'error';
+  hasSavedProfile?: boolean;
+  isLoggedIn?:      boolean;
 }
 
 // Benchmarking functions imported from lib/benchmarks/athleteBenchmarks.ts
@@ -242,6 +247,7 @@ const ZONE_ROW_BG: Record<string, string> = {
 
 export default function ProfilerResultsV06({
   profile, fuelingPrefill, tier, onSendToFueling, name, sex, age, dietType,
+  onSaveToProfile, saveState = 'idle', hasSavedProfile = false, isLoggedIn = false,
 }: Props) {
   const { outputs } = profile;
   const { vlamax, vo2max, mlssWatts, lt1Watts, cpWatts } = outputs;
@@ -708,6 +714,30 @@ export default function ProfilerResultsV06({
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* ── Mobile-only save to profile ───────────────────────────── */}
+      {isLoggedIn && onSaveToProfile && (
+        <div className="block lg:hidden">
+          <button
+            type="button"
+            onClick={saveState === 'idle' || saveState === 'error' ? onSaveToProfile : undefined}
+            disabled={saveState === 'saving' || saveState === 'saved'}
+            className={`w-full py-3 rounded-xl text-sm font-bold transition disabled:opacity-60 ${
+              saveState === 'saved'
+                ? 'bg-green-100 text-green-800 border border-green-200'
+                : saveState === 'error'
+                ? 'bg-red-50 text-red-700 border border-red-200 hover:bg-red-100'
+                : 'bg-violet-50 text-violet-700 border border-violet-200 hover:bg-violet-100'
+            }`}
+          >
+            {saveState === 'saving' ? 'Saving…'
+              : saveState === 'saved'  ? '✓ Saved to profile'
+              : saveState === 'error'  ? 'Save failed — tap to retry'
+              : hasSavedProfile        ? 'Replace saved profile'
+              : 'Save to profile'}
+          </button>
         </div>
       )}
 

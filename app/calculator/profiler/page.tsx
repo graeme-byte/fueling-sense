@@ -373,6 +373,10 @@ export default function ProfilerPage() {
               sex={athleteSex}
               age={athleteAge}
               dietType={athleteDiet}
+              onSaveToProfile={handleSaveToProfile}
+              saveState={saveState}
+              hasSavedProfile={hasSavedProfile}
+              isLoggedIn={isLoggedIn}
             />
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-3">

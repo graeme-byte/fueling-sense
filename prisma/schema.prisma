@@ -52,8 +52,8 @@ model Subscription {
 model AthleteProfile {
   id         String   @id @default(uuid())
   userId     String   @map("user_id")
-  name       String
-  sex        String
+  name       String?
+  sex        String?
   weightKg   Float    @map("weight_kg")
   bodyFatPct Float    @map("body_fat_pct")
   createdAt  DateTime @default(now()) @map("created_at")
