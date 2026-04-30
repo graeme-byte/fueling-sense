@@ -418,3 +418,91 @@ def compute_metabolic_profile(p20_w, p300_w, weight_kg, body_fat_pct):
 3. **LT2 = MLSS.** Do not compute a separate LT2.
 4. **VLamax is continuous.** No staged levels, no categorical phenotype bins.
 5. Always enforce: **LT1 < MLSS < CP**
+
+---
+
+## BIKE Model v2.3 — Candidate (implemented in `lib/engine/metabolicModelBikeV23.ts`)
+
+**Source:** `claude_bike_v2_3_implementation_prompt.md` / `FuelingSense_Bike_Equations_v2_3_Candidate.md`  
+**Status:** Candidate — not yet wired into production API routes  
+**Dataset:** N=40 INSCYD cyclists (same as production model)  
+**Note:** Run model must not be changed in this pass.
+
+### VLamax — v2.3 Component Decomposition
+
+```ts
+// Sprint normalisation (handles variable sprint duration 12–24 s)
+P20eq = pSprintWatts * (pSprintDurationSec / 20)^0.1765
+
+// PCr / neuromuscular fraction (FFM-adjusted)
+pcrFraction = clamp(0.5546 + 0.0999 * ((FFM - 66) / 66), 0.40, 0.70)
+pcrProxy    = pcrFraction * (P20eq - P180)
+
+// Aerobic-supported proxy
+aerobicProxy = 0.7615 * P180
+
+// Glycolytic proxy → VLamax power law
+glycoProxy   = P20eq - pcrProxy - aerobicProxy
+VLamax       = clamp(0.1041 * (max(glycoProxy, 1e-6) / FFM)^1.1634, 0.05, 1.20)
+```
+
+### P300 Reconstruction
+
+Primary (aero1 + aero3): CP/W' hyperbolic fit, P300 = CP + W'/300  
+Fallback (aero1 + aero2): same formula  
+Last resort: P300 = pAero1Watts directly
+
+### VO2max (linear — do NOT use exponent form)
+
+```ts
+VO2max = clamp(12.3563 * (P300 / weightKg) - 0.4508, 20, 85)   // ml/kg/min
+```
+
+### MLSS / LT2 v2.3
+
+```ts
+MLSS = clamp(P300 * 0.911266 * exp(-0.392262 * VLamax), 50, min(P300 * 0.99, 600))   // W
+```
+
+### LT1 v2.3
+
+```ts
+LT1 = clamp(MLSS * (0.914238 - 0.179812 * VLamax) - 21.014364, 30, MLSS - 1)   // W
+```
+
+### FATmax position v2.3
+
+```ts
+FATmaxW = clamp(MLSS * (0.734419 + 0.071120 * ln(0.55 / VLamax)) - 22.786137, 30, MLSS - 1)   // W
+```
+
+### FATmax magnitude v2.3
+
+```ts
+FATmax_g_h = max(0, 0.297128 * FATmaxW - 0.231024 * weightKg * VLamax - 1.619044)   // g/h
+```
+
+### Guardrails / clamps
+
+| Parameter | Lower | Upper |
+|---|---|---|
+| VLamax | 0.05 | 1.20 |
+| pcrFraction | 0.40 | 0.70 |
+| VO2max | 20 | 85 |
+| MLSS | 50 W | min(P300 × 0.99, 600 W) |
+| LT1 | 30 W | MLSS − 1 |
+| FATmax_W | 30 W | MLSS − 1 |
+| FATmax_g_h | 0 | — |
+
+### v2.3 Validation Results (N=40)
+
+| Metric | R² | MAE | RMSE | Bias |
+|---|---|---|---|---|
+| VLamax | 0.954 | 0.019 mmol/L/s | 0.023 | 0.000 |
+| VO2max | 0.971 | 0.969 ml/kg/min | 1.201 | −0.086 |
+| MLSS | 0.942 | 7.44 W | 10.75 W | +0.62 W |
+| LT1 (excl. INSCYD ≤60 W, n=31) | 0.938 | 5.56 W | 8.01 W | 0.00 W |
+| FATmax position | 0.937 | 4.92 W | 7.42 W | 0.00 W |
+| FATmax magnitude | 0.878 | 2.02 g/h | 2.85 g/h | 0.00 g/h |
+
+LT1 note: 9 rows excluded where INSCYD LT1 ≤ 60 W (placeholder values in source data). All-row LT1 R² = 0.045 due to these placeholder rows.
