@@ -243,10 +243,10 @@ export default function ProfilerPage() {
         </div>
       </header>
 
-      <div className="flex flex-col lg:flex-row lg:h-[calc(100vh-64px)]">
+      <div className="flex flex-col lg:flex-row">
 
-        {/* Left: Input panel */}
-        <aside className="w-full lg:w-72 lg:min-w-64 bg-white border-b lg:border-b-0 lg:border-r border-gray-100 p-5 lg:overflow-y-auto">
+        {/* Left: Input panel — sticky on desktop so form stays visible while results scroll */}
+        <aside className="w-full lg:w-72 lg:min-w-64 bg-white border-b lg:border-b-0 lg:border-r border-gray-100 p-5 lg:sticky lg:top-0 lg:self-start lg:max-h-screen lg:overflow-y-auto">
 
           {/* Saved profile panel */}
           {isLoggedIn && savedProfileData && !profileLoaded && (
@@ -359,7 +359,7 @@ export default function ProfilerPage() {
         </aside>
 
         {/* Right: Results panel */}
-        <main className="flex-1 p-5 lg:overflow-y-auto">
+        <main className="flex-1 p-5">
           <div className="hidden lg:block">
             <GettingStartedPanel context="profiler" isProUser={isPro} />
           </div>
@@ -379,7 +379,7 @@ export default function ProfilerPage() {
               isLoggedIn={isLoggedIn}
             />
           ) : (
-            <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-3">
+            <div className="min-h-[40vh] flex flex-col items-center justify-center text-gray-400 gap-3">
               <svg width={48} height={48} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.2} opacity={0.4}>
                 <path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 4-6"/>
               </svg>

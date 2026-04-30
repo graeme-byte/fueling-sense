@@ -169,10 +169,10 @@ export default function FuelingCalculatorPage() {
         </div>
       </header>
 
-      <div className="flex flex-col lg:flex-row lg:h-[calc(100vh-64px)]">
+      <div className="flex flex-col lg:flex-row">
 
-        {/* Left: Input panel */}
-        <aside className="w-full lg:w-72 lg:min-w-64 bg-white border-b lg:border-b-0 lg:border-r border-gray-100 p-5 lg:overflow-y-auto">
+        {/* Left: Input panel — sticky on desktop */}
+        <aside className="w-full lg:w-72 lg:min-w-64 bg-white border-b lg:border-b-0 lg:border-r border-gray-100 p-5 lg:sticky lg:top-0 lg:self-start lg:max-h-screen lg:overflow-y-auto">
 
           {/* Saved profile panel — show load option when not yet prefilled */}
           {savedProfile && !profilePrefilled && (
@@ -203,7 +203,7 @@ export default function FuelingCalculatorPage() {
         </aside>
 
         {/* Right: Results panel */}
-        <main className="flex-1 p-5 overflow-y-auto">
+        <main className="flex-1 p-5">
           <div className="hidden lg:block">
             <GettingStartedPanel context="fueling" isProUser={tier === 'pro'} />
           </div>
@@ -217,7 +217,7 @@ export default function FuelingCalculatorPage() {
               onPowerChange={setLivePowerW}
             />
           ) : (
-            <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-3">
+            <div className="min-h-[40vh] flex flex-col items-center justify-center text-gray-400 gap-3">
               <svg width={48} height={48} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.2} opacity={0.4}>
                 <path d="M3 3v18h18"/><path d="M7 17c2-4 5-6 8-4s4 3 6 0"/>
               </svg>
