@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import type {
   FuelingStrategy,
   GelItem,
@@ -22,14 +22,11 @@ import {
 } from '@/lib/engine/fuelingStrategy';
 
 interface Props {
-  strategy:        FuelingStrategy;
-  onChange:        (s: FuelingStrategy) => void;
-  plannedGph:      number;
-  recommendedGph:  number;
-  targetWatts:     number;
-  mlssWatts:       number;
-  onPowerChange:   (w: number) => void;
-  displayUnit:     'g' | 'kcal';
+  strategy:       FuelingStrategy;
+  onChange:       (s: FuelingStrategy) => void;
+  plannedGph:     number;
+  recommendedGph: number;
+  displayUnit:    'g' | 'kcal';
 }
 
 function newId() {
@@ -153,12 +150,9 @@ const SOLID_PRESET_NAMES = SOLID_PRESETS
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function StrategyControls({
-  strategy, onChange, plannedGph, recommendedGph,
-  targetWatts, mlssWatts, onPowerChange, displayUnit,
+  strategy, onChange, plannedGph, recommendedGph, displayUnit,
 }: Props) {
 
-  const pctLT2        = mlssWatts > 0 ? Math.round((targetWatts / mlssWatts) * 100) : 0;
-  const powerInputRef = useRef<HTMLInputElement>(null);
   const fluidMlH      = strategyToFluidMlPerHour(strategy);
   const fluidLow   = fluidMlH > 0 && fluidMlH < FLUID_LOW_ML_H;
   const fluidHigh  = fluidMlH > FLUID_HIGH_ML_H;
@@ -215,30 +209,6 @@ export default function StrategyControls({
 
   return (
     <div className="space-y-6">
-
-      {/* ── Pacing ─────────────────────────────────────────────────── */}
-      <div>
-        <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-2">Pacing</p>
-        <div className="grid grid-cols-[1fr_auto] gap-3 items-end">
-          <NumInput
-            label="Planned Power (W)"
-            value={targetWatts}
-            min={50} max={1200} step={5}
-            onChange={onPowerChange}
-            inputRef={powerInputRef}
-          />
-          <div className="pb-2.5">
-            <button
-              type="button"
-              onClick={() => powerInputRef.current?.blur()}
-              className="px-3 py-2 text-xs font-semibold text-violet-700 border border-violet-300 rounded-lg hover:bg-violet-50 transition"
-            >
-              Update
-            </button>
-          </div>
-        </div>
-        <p className="text-xs text-gray-400 mt-1.5">Default target: 85% LT2 ({mlssWatts > 0 ? Math.round(mlssWatts * 0.85) : '—'} W)</p>
-      </div>
 
       {/* ── Gels ───────────────────────────────────────────────────── */}
       <div>

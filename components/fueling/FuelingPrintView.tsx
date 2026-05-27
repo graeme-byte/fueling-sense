@@ -372,7 +372,7 @@ export default function FuelingPrintView({
 
           <PageHeader
             title="Fueling Plan — Physiology &amp; Demand"
-            subtitle="Fueling Calculator"
+            subtitle={athleteLine || 'Fueling Calculator'}
             today={today}
           />
 
@@ -426,13 +426,13 @@ export default function FuelingPrintView({
             <div style={SL}>Fueling Summary</div>
             <div style={{ display: 'flex', gap: 8 }}>
               {[
-                { label: 'Required',    value: Math.round(requiredGph),    color: '#111827', border: '#6b7280' },
-                { label: 'Recommended', value: Math.round(recommendedGph), color: '#7c3aed', border: '#7c3aed' },
-                { label: 'Planned',     value: Math.round(plannedGph),     color: '#111827', border: '#374151' },
+                { label: 'Required',      value: Math.round(requiredGph),    color: '#111827', border: '#6b7280', bg: '#f9fafb' },
+                { label: 'Recommended',   value: Math.round(recommendedGph), color: '#7c3aed', border: '#7c3aed', bg: '#f9fafb' },
+                { label: 'Target Intake', value: Math.round(plannedGph),     color: '#0f766e', border: '#0d9488', bg: '#f0fdfa' },
               ].map(m => (
                 <div key={m.label} style={{
                   flex: 1, borderLeft: `4px solid ${m.border}`,
-                  padding: '9px 11px', backgroundColor: '#f9fafb', borderRadius: '0 6px 6px 0',
+                  padding: '9px 11px', backgroundColor: m.bg, borderRadius: '0 6px 6px 0',
                 }}>
                   <div style={{ fontSize: 8, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#6b7280' }}>{m.label}</div>
                   <div style={{ fontSize: 19, fontWeight: 900, color: m.color, lineHeight: 1.1, marginTop: 3 }}>{m.value}</div>

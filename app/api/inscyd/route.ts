@@ -158,18 +158,5 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
-  return NextResponse.json({ result: record.resultJson, id: record.id })
-:wq    return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
-  }
-
-  const record = await prisma.inscydResult.findFirst({
-    where: { id, userId: user.id },
-  });
-  if (!record) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  }
-
-  return NextResponse.json({ result: record.resultJson, id: record.id })
-:wq}:q!
-~                                                                                                                                    
-}:q!
+  return NextResponse.json({ result: record.resultJson, id: record.id });
+}

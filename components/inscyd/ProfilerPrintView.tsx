@@ -44,7 +44,7 @@ const S = {
 export default function ProfilerPrintView({
   profile, name, sex, age, dietType, isPro, laData, zones, phenotypeLabel,
 }: Props) {
-  const { vlamax, vo2max, mlssWatts, lt1Watts, cpWatts } = profile.outputs;
+  const { vlamax, vo2max, mlssWatts, lt1Watts } = profile.outputs;
   const { weightKg, bodyFatPct } = profile.inputs;
   const lt2Wkg = mlssWatts / weightKg;
 
@@ -68,7 +68,6 @@ export default function ProfilerPrintView({
     { label: 'VO\u2082max', value: vo2max.toFixed(1),        unit: 'ml/kg/min', border: '#3b82f6' },
     { label: 'LT1',     value: isPro ? String(Math.round(lt1Watts))   : '—', unit: isPro ? 'W' : 'Pro only', border: '#22c55e' },
     { label: 'LT2',     value: isPro ? String(Math.round(mlssWatts))  : '—', unit: isPro ? 'W' : 'Pro only', border: '#f97316' },
-    { label: 'CP',      value: String(Math.round(cpWatts)),   unit: 'W',         border: '#8b5cf6' },
   ];
 
   const benchmarks = [

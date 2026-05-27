@@ -15,10 +15,18 @@ export const TERM_DEFINITIONS: Record<string, string> = {
     'The intensity where your body begins to rely more on carbohydrate alongside fat. Often used as a guide for easy and aerobic training.',
   LT2:
     'The second lactate threshold (LT2) is the highest intensity where lactate production and clearance are balanced.',
+  'LT1 Pace':
+    'LT1 is your easier aerobic threshold pace. Below this intensity, effort is more sustainable and fat contribution is generally higher. Most of your training volume should sit at or below LT1.',
+  'LT2 Pace':
+    'LT2 is your heavy sustainable threshold pace — the intensity where lactate production and clearance are at or near their limit. Sustained efforts above this pace accumulate lactate progressively.',
   FATmax:
     'The intensity where fat burning is highest. A key reference point for endurance efficiency.',
   CARB90:
     'The intensity where carbohydrate demand reaches ~90g per hour. Above this, fueling becomes harder to sustain.',
+  Phenotype:
+    'Your metabolic phenotype summarises the balance between aerobic capacity (VO2max), glycolytic drive (VLamax), and threshold durability (LT1/LT2). It is not a ranking — it describes the type of efforts and events your current physiology is best suited to.',
+  'Athlete Type':
+    'Your athlete type summarises the balance between VO2max, VLamax, and threshold durability. It is not a ranking — it describes your current performance bias and which kinds of running efforts your physiology is best adapted to.',
 };
 
 interface Props {
