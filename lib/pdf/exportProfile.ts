@@ -250,5 +250,5 @@ export function exportProfilePDF(result: InscydResult, tier: SubscriptionTier): 
 
   // ── Save ───────────────────────────────────────────────────────────────────
   const slug = name.toLowerCase().replace(/\s+/g, '-');
-  doc.save(`fueling-sense-profile-${slug}.pdf`);
+  doc.save(`cycling-profile-${slug}.pdf`);
 }

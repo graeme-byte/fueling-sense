@@ -12,7 +12,7 @@ import type { ProfilerV06FormPayload } from '@/components/inscyd/ProfilerInputFo
 import type { MetabolicV06Result } from '@/lib/engine/metabolicModelV06';
 import type { INSCYDToFuelingSenseBridge, SubscriptionTier } from '@/lib/types';
 import LogoutButton from '@/components/LogoutButton';
-import ToolSwitcher from '@/components/ToolSwitcher';
+import AllToolsSwitcher from '@/components/AllToolsSwitcher';
 import GettingStartedPanel from '@/components/GettingStartedPanel';
 import { saveProfileAction, getSavedProfileAction } from '@/app/actions/profile';
 import type { SavedProfileData } from '@/app/actions/profile';
@@ -32,7 +32,6 @@ export default function ProfilerPage() {
   const [fuelingPrefill, setFuelingPrefill] = useState<INSCYDToFuelingSenseBridge | null>(null);
   // Athlete context — display/benchmarking only, never enters model calculations
   const [athleteSex,     setAthleteSex]     = useState<'Male' | 'Female' | undefined>(undefined);
-  const [athleteAge,     setAthleteAge]     = useState<number | undefined>(undefined);
   const [athleteName,    setAthleteName]    = useState<string | undefined>(undefined);
   const [athleteDiet,    setAthleteDiet]    = useState<string | undefined>(undefined);
   // Saved profile data — loaded on mount, not auto-applied to form
@@ -120,9 +119,8 @@ export default function ProfilerPage() {
       setProfile(data.profile as MetabolicV06Result);
       setFuelingPrefill(data.fuelingPrefill as INSCYDToFuelingSenseBridge);
       setAthleteSex(payload.sex);
-      setAthleteAge(payload.age);
       setAthleteName(payload.name);
-      setAthleteDiet(payload.dietType);
+      // dietType is no longer collected on the profiler — it lives on the fueling page
       setSaveState('idle');   // new result — save state resets
     } catch {
       setError('Network error — please try again');
@@ -153,7 +151,6 @@ export default function ProfilerPage() {
       sex:           athleteSex,
       phenotype:     fuelingPrefill.phenotype,
       name:          athleteName,
-      age:           athleteAge,
       dietType:      athleteDiet,
       resultJson:    profile as object,
     });
@@ -191,8 +188,9 @@ export default function ProfilerPage() {
       athleteLevel:   fuelingPrefill.suggestedLevel,
       targetWatts:    Math.round(fuelingPrefill.mlssWatts),
       targetCHO:      60,
-      vo2maxMlKgMin:  fuelingPrefill.vo2maxMlKgMin,
-      // inscydResultId omitted — persistence not yet wired for v0.6
+      vo2maxMlKgMin:  fuelingPrefill.vo2maxMlKgMin != null ? Math.round(fuelingPrefill.vo2maxMlKgMin * 10) / 10 : undefined,
+      name:           athleteName,
+      sex:            athleteSex,
     });
     router.push('/calculator/fueling');
   }
@@ -229,24 +227,24 @@ export default function ProfilerPage() {
         <span className="text-gray-200 select-none hidden sm:inline">|</span>
         <div className="hidden sm:block">
           <p className="text-sm font-bold text-gray-800 leading-tight">Metabolic Profiler</p>
-          <p className="text-xs text-gray-400">VO2max · VLamax · LT1 · LT2 · Critical Power</p>
+          <p className="text-xs text-gray-400">VO2max · VLamax · LT1 · LT2</p>
         </div>
         {isPro ? (
           <span className="text-xs font-bold bg-amber-100 text-amber-700 px-3 py-1 rounded-full">✓ PRO</span>
         ) : (
           <span className="text-xs font-bold bg-green-100 text-green-700 px-3 py-1 rounded-full">FREE</span>
         )}
-        {isPro && <span className="hidden sm:block"><ToolSwitcher active="profiler" /></span>}
+        <span className="hidden sm:block"><AllToolsSwitcher active="cycling-profiler" /></span>
         <div className="ml-auto flex items-center gap-3">
           <Link href="/support" className="text-xs text-gray-400 hover:text-gray-700 transition hidden sm:inline">Support</Link>
           {isLoggedIn && <LogoutButton className="text-xs text-gray-400 hover:text-gray-700 transition" />}
         </div>
       </header>
 
-      <div className="flex flex-col lg:flex-row lg:h-[calc(100vh-64px)]">
+      <div className="flex flex-col lg:flex-row">
 
-        {/* Left: Input panel */}
-        <aside className="w-full lg:w-72 lg:min-w-64 bg-white border-b lg:border-b-0 lg:border-r border-gray-100 p-5 lg:overflow-y-auto">
+        {/* Left: Input panel — sticky on desktop so form stays visible while results scroll */}
+        <aside className="w-full lg:w-72 lg:min-w-64 bg-white border-b lg:border-b-0 lg:border-r border-gray-100 p-5 lg:sticky lg:top-0 lg:self-start lg:max-h-screen lg:overflow-y-auto">
 
           {/* Saved profile panel */}
           {isLoggedIn && savedProfileData && !profileLoaded && (
@@ -344,8 +342,6 @@ export default function ProfilerPage() {
             prefill={profileLoaded && savedProfileData ? {
               name:       savedProfileData.name,
               sex:        savedProfileData.sex as 'Male' | 'Female' | undefined,
-              age:        savedProfileData.age ?? undefined,
-              dietType:   savedProfileData.dietType,
               weightKg:   savedProfileData.weightKg,
               bodyFatPct: savedProfileData.bodyFatPct,
               // Source inputs — present only for profiles saved after migration 2
@@ -356,10 +352,34 @@ export default function ProfilerPage() {
               p720:       savedProfileData.p720Watts,
             } : undefined}
           />
+
+          {/* Bottom save button — mirrors top panel, for scroll-down convenience */}
+          {isLoggedIn && profile && (
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={saveState === 'idle' || saveState === 'error' ? handleSaveToProfile : undefined}
+                disabled={saveState === 'saving' || saveState === 'saved'}
+                className={`w-full py-2 rounded-lg text-xs font-semibold border transition disabled:opacity-60 ${
+                  saveState === 'saved'
+                    ? 'bg-green-50 text-green-800 border-green-200'
+                    : saveState === 'error'
+                    ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
+                    : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-violet-50 hover:border-violet-200 hover:text-violet-700'
+                }`}
+              >
+                {saveState === 'saving' ? 'Saving…'
+                  : saveState === 'saved'  ? '✓ Saved to profile'
+                  : saveState === 'error'  ? 'Save failed — retry'
+                  : hasSavedProfile        ? '↑ Update saved profile'
+                  : '↑ Save to profile'}
+              </button>
+            </div>
+          )}
         </aside>
 
         {/* Right: Results panel */}
-        <main className="flex-1 p-5 lg:overflow-y-auto">
+        <main className="flex-1 p-5">
           <div className="hidden lg:block">
             <GettingStartedPanel context="profiler" isProUser={isPro} />
           </div>
@@ -371,11 +391,14 @@ export default function ProfilerPage() {
               onSendToFueling={handleSendToFueling}
               name={athleteName}
               sex={athleteSex}
-              age={athleteAge}
               dietType={athleteDiet}
+              onSaveToProfile={handleSaveToProfile}
+              saveState={saveState}
+              hasSavedProfile={hasSavedProfile}
+              isLoggedIn={isLoggedIn}
             />
           ) : (
-            <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-3">
+            <div className="min-h-[40vh] flex flex-col items-center justify-center text-gray-400 gap-3">
               <svg width={48} height={48} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.2} opacity={0.4}>
                 <path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 4-6"/>
               </svg>

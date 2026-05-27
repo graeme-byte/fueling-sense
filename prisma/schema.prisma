@@ -23,7 +23,8 @@ model User {
   athleteProfiles AthleteProfile[]
   inscydResults   InscydResult[]
   fuelingResults  FuelingResult[]
-  savedProfile    SavedProfile?
+  savedProfile        SavedProfile?
+  savedRunningProfile SavedRunningProfile?
 
   @@map("users")
 }
@@ -52,8 +53,8 @@ model Subscription {
 model AthleteProfile {
   id         String   @id @default(uuid())
   userId     String   @map("user_id")
-  name       String
-  sex        String
+  name       String?
+  sex        String?
   weightKg   Float    @map("weight_kg")
   bodyFatPct Float    @map("body_fat_pct")
   createdAt  DateTime @default(now()) @map("created_at")
@@ -143,6 +144,39 @@ model SavedProfile {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("saved_profiles")
+}
+
+// ── Saved Running Profile ────────────────────────────────────────
+// One row per user. Upserted when the user clicks "Save profile"
+// on the Running Profiler page.
+
+model SavedRunningProfile {
+  id            String   @id @default(uuid())
+  userId        String   @unique @map("user_id")
+  modelVersion  String   @default("running-v2.4-candidate") @map("model_version")
+  // Source inputs — stored for exact form prefill
+  sprintDistM   Float    @map("sprint_dist_m")
+  sprintTimeS   Float    @default(20) @map("sprint_time_s")
+  threeMinDistM Float    @map("three_min_dist_m")
+  sixMinDistM   Float    @map("six_min_dist_m")
+  massKg        Float    @map("mass_kg")
+  bodyFatPct    Float    @map("body_fat_pct")
+  // Derived outputs — for fueling calculator prefill
+  lt1SpeedMs    Float    @map("lt1_speed_ms")
+  mlssSpeedMs   Float    @map("mlss_speed_ms")
+  vlamax        Float
+  vo2maxMlKgMin Float    @map("vo2max_ml_kg_min")
+  // Athlete context
+  sex           String?
+  name          String?
+  age           Int?
+  dietType      String?  @map("diet_type")
+  savedAt       DateTime @default(now()) @map("saved_at")
+  resultJson    Json     @map("result_json")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("saved_running_profiles")
 }
 
 // ── Fueling Result ────────────────────────────────────────────────

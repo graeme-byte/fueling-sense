@@ -1,19 +1,17 @@
 /**
  * lib/pdf/exportPdf.ts
- * Client-side PDF generation: html2canvas → jsPDF (A4 portrait).
+ * Client-side PDF generation: html-to-image → jsPDF (A4 portrait).
  * Dynamic imports keep bundle weight out of the SSR path.
  */
 
 export async function exportToPdf(element: HTMLElement, filename: string): Promise<void> {
-  const [html2canvas, jsPDF] = await Promise.all([
-    import('html2canvas').then(m => m.default),
+  const [{ toCanvas }, jsPDF] = await Promise.all([
+    import('html-to-image'),
     import('jspdf').then(m => m.default),
   ]);
 
-  const canvas = await html2canvas(element, {
-    scale:           2,
-    useCORS:         true,
-    logging:         false,
+  const canvas = await toCanvas(element, {
+    pixelRatio:      2,
     backgroundColor: '#ffffff',
   });
 

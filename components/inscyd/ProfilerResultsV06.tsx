@@ -9,7 +9,8 @@ import type { MetabolicV06Result } from '@/lib/engine/metabolicModelV06';
 import type { INSCYDToFuelingSenseBridge, SubscriptionTier } from '@/lib/types';
 // fitLactate / lactateCurve not used — v0.6 uses a VLamax-aware curve (see laPoint below).
 import { calcV06TrainingZones } from '@/lib/engine/v06Zones';
-import { classifyVO2max, classifyVlamax, classifyLT2Wkg } from '@/lib/benchmarks/athleteBenchmarks';
+import { ZONE_INFO, ZONE_DOT, ZONE_ROW_BG } from '@/lib/zones/zoneDefinitions';
+import type { ZoneInfoContent } from '@/lib/zones/zoneDefinitions';
 import FuelingSnapshot from './FuelingSnapshot';
 import ProfilerPrintView from './ProfilerPrintView';
 import InfoTooltip from '@/components/shared/InfoTooltip';
@@ -24,8 +25,12 @@ interface Props {
   // Athlete context — display/benchmarking only, no model impact
   name?:     string;
   sex?:      'Male' | 'Female';
-  age?:      number;
   dietType?: string;
+  // Save-to-profile — wired to the page-level handler; mobile CTA only
+  onSaveToProfile?: () => void;
+  saveState?:       'idle' | 'saving' | 'saved' | 'error';
+  hasSavedProfile?: boolean;
+  isLoggedIn?:      boolean;
 }
 
 // Benchmarking functions imported from lib/benchmarks/athleteBenchmarks.ts
@@ -67,65 +72,7 @@ function LockedCard({ label, hint }: { label: string; hint: string }) {
 
 // ── Zone info content ────────────────────────────────────────────────────────
 
-interface ZoneInfoContent {
-  purpose:    string;
-  physiology: string;
-  bestFor:    string;
-  note?:      string;
-}
-
-const ZONE_INFO: Record<string, ZoneInfoContent> = {
-  'Zone 1': {
-    purpose:    'Active recovery and circulation',
-    physiology: 'Well below LT1 — almost entirely aerobic fat oxidation, near-zero lactate. The nervous system recovers, not the muscles.',
-    bestFor:    'Recovery days, warm-ups, cool-downs, easy filler between hard sessions.',
-    note:       'If you can feel it working, it is not Zone 1.',
-  },
-  'Zone 2': {
-    purpose:    'Build aerobic base and fat-oxidation capacity',
-    physiology: 'Below LT1 — fat is the primary fuel. Lactate stays at baseline. This is where the highest proportion of energy comes from fat.',
-    bestFor:    'Long rides, base-building blocks, volume accumulation.',
-    note:       'The most underused zone. The majority of an endurance athlete\'s training belongs here.',
-  },
-  'Zone 3A': {
-    purpose:    'Aerobic efficiency at the threshold boundary',
-    physiology: 'At or just above LT1 — carbohydrate contribution begins rising. Lactate edges above baseline but remains controlled and clearable.',
-    bestFor:    'Focused endurance work, aerobic development sessions, progression rides that stay below tempo.',
-  },
-  'Zone 3B': {
-    purpose:    'Muscular endurance and aerobic durability',
-    physiology: 'Clearly above LT1, below LT2 — mixed fuel use, moderate and manageable lactate accumulation. Sustainable for 20–60 min.',
-    bestFor:    'Tempo intervals, race-simulation pacing, time-trial preparation.',
-  },
-  'Zone 4': {
-    purpose:    'Work at maximal lactate steady state (LT2 / MLSS)',
-    physiology: 'At LT2 — carbohydrate dominates. Lactate is at the highest level that can be sustained without progressive accumulation. This is the threshold.',
-    bestFor:    'Threshold intervals (10–30 min), race-pace specificity for events lasting 40 min or more.',
-  },
-  'Zone 5A': {
-    purpose:    'Entry into the severe domain — raise MLSS and tolerance to accumulation',
-    physiology: 'Above LT2 — lactate rises progressively and oxygen uptake continues climbing toward VO2max. The body is working to clear accumulation, not just produce energy.',
-    bestFor:    '5–12 min intervals just above threshold, forcing upward adaptation of MLSS over training blocks.',
-    note:       'Often mislabelled as "threshold plus" — physiologically it is a distinct, harder domain.',
-  },
-  'Zone 5B': {
-    purpose:    'Maximise oxygen uptake and aerobic ceiling',
-    physiology: 'At 90–100% of P300 (VO2max power proxy) — carbohydrate fuels nearly all energy. VO2max is reached or closely approached within 3–5 min. Lactate accumulates rapidly.',
-    bestFor:    '3–6 min VO2max intervals, cycling VO2max efforts with structured recovery to drive aerobic ceiling adaptations.',
-  },
-  'Zone 6': {
-    purpose:    'Anaerobic capacity and lactate tolerance',
-    physiology: 'Above P300 — heavily reliant on anaerobic glycolysis. High VLamax demand. Lactate spikes rapidly. Not sustainable beyond 1–3 min.',
-    bestFor:    'Anaerobic capacity repeats, criterium-style surges, race-winning attacks, capacity work in periodised blocks.',
-    note:       'High anaerobic training volume raises VLamax, which can suppress LT2 — use deliberately within a structured plan.',
-  },
-  'Zone 7': {
-    purpose:    'Neuromuscular power and maximal sprint output',
-    physiology: 'At or near P20 — maximal sprint power driven by phosphocreatine and peak glycolytic rate. Duration measured in seconds. Central nervous system recruitment is at its ceiling.',
-    bestFor:    'Sprint training, explosive starts, short maximal efforts under 15 seconds.',
-    note:       'Neural adaptations from this zone do not require high volume — quality and full recovery between efforts matter most.',
-  },
-};
+// ZONE_INFO, ZONE_DOT, ZONE_ROW_BG, ZoneInfoContent — imported from lib/zones/zoneDefinitions
 
 // ── Zone info popover ─────────────────────────────────────────────────────────
 
@@ -215,40 +162,17 @@ function ZoneInfoPopover({ zoneName }: { zoneName: string }) {
   );
 }
 
-// Zone colour maps — same names/values as InscydResults.tsx (not extracted to avoid coupling)
-const ZONE_DOT: Record<string, string> = {
-  'Zone 1':  'bg-blue-200',
-  'Zone 2':  'bg-blue-500',
-  'Zone 3A': 'bg-green-300',
-  'Zone 3B': 'bg-green-500',
-  'Zone 4':  'bg-yellow-400',
-  'Zone 5A': 'bg-orange-500',
-  'Zone 5B': 'bg-red-500',
-  'Zone 6':  'bg-red-700',
-  'Zone 7':  'bg-violet-600',
-};
-
-const ZONE_ROW_BG: Record<string, string> = {
-  'Zone 1':  'bg-blue-50   hover:bg-blue-100',
-  'Zone 2':  'bg-blue-100  hover:bg-blue-200',
-  'Zone 3A': 'bg-green-50  hover:bg-green-100',
-  'Zone 3B': 'bg-green-100 hover:bg-green-200',
-  'Zone 4':  'bg-yellow-50  hover:bg-yellow-100',
-  'Zone 5A': 'bg-orange-50  hover:bg-orange-100',
-  'Zone 5B': 'bg-red-50     hover:bg-red-100',
-  'Zone 6':  'bg-red-100    hover:bg-red-200',
-  'Zone 7':  'bg-violet-50  hover:bg-violet-100',
-};
+// ZONE_DOT and ZONE_ROW_BG imported from lib/zones/zoneDefinitions
 
 export default function ProfilerResultsV06({
-  profile, fuelingPrefill, tier, onSendToFueling, name, sex, age, dietType,
+  profile, fuelingPrefill, tier, onSendToFueling, name, sex, dietType,
+  onSaveToProfile, saveState = 'idle', hasSavedProfile = false, isLoggedIn = false,
 }: Props) {
   const { outputs } = profile;
-  const { vlamax, vo2max, mlssWatts, lt1Watts, cpWatts } = outputs;
+  const { vlamax, vo2max, mlssWatts, lt1Watts } = outputs;
   const isPro = tier === 'pro';
 
   const [showZoneDetails, setShowZoneDetails] = useState(false);
-  const [showStackUp,     setShowStackUp]     = useState(false);
   const [exporting,       setExporting]       = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -256,8 +180,10 @@ export default function ProfilerResultsV06({
     if (!printRef.current) return;
     setExporting(true);
     try {
-      const name = sex ? `metabolic-profile-${sex.toLowerCase()}` : 'metabolic-profile';
-      await exportToPdf(printRef.current, `${name}.pdf`);
+      const slug = name && name !== 'Athlete'
+        ? name.toLowerCase().replace(/\s+/g, '-')
+        : 'athlete';
+      await exportToPdf(printRef.current, `cycling-profile-${slug}.pdf`);
     } finally {
       setExporting(false);
     }
@@ -314,10 +240,8 @@ export default function ProfilerResultsV06({
 
   // Free-tier metric cards (always visible)
   const freeMetrics = [
-    { label: 'VLamax', value: vlamax.toFixed(3), unit: 'mmol/L/s',   color: 'border-red-500' },
-    { label: 'VO2max', value: vo2max.toFixed(1), unit: 'ml/kg/min',  color: 'border-blue-500' },
-    // CP is derived from MLSS for display only — labelled explicitly to prevent misinterpretation.
-    { label: 'CP',     value: Math.round(cpWatts), unit: 'W · display only', color: 'border-purple-500' },
+    { label: 'VLamax', value: vlamax.toFixed(3), unit: 'mmol/L/s',  color: 'border-red-500' },
+    { label: 'VO2max', value: vo2max.toFixed(1), unit: 'ml/kg/min', color: 'border-blue-500' },
   ];
 
   // Pro-gated metric cards
@@ -329,35 +253,49 @@ export default function ProfilerResultsV06({
   return (
     <div className="space-y-6">
 
-      {/* ── Athlete context header + Export PDF ────────────────────── */}
-      <div className="flex items-center gap-2 text-xs text-gray-500 pb-1 border-b border-gray-100 min-w-0">
-        {name && name !== 'Athlete' && (
-          <span className="font-semibold text-gray-700 truncate min-w-0">{name}</span>
-        )}
-        {sex && (
-          <span className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 shrink-0">{sex}</span>
-        )}
-        {age && (
-          <span className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 shrink-0">{age} yrs</span>
-        )}
-        <button
-          onClick={handleExportPdf}
-          disabled={exporting}
-          className="ml-auto shrink-0 flex items-center gap-1.5 px-3 py-1 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition disabled:opacity-50"
-        >
-          {exporting ? (
-            <>
-              <span className="animate-spin h-3 w-3 border border-gray-400 border-t-transparent rounded-full" />
-              Generating…
-            </>
-          ) : (
-            '↓ Export PDF'
+      {/* ── Profile header — matches running profiler layout ──────── */}
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h2 className="text-lg font-bold text-gray-900">
+            {name && name !== 'Athlete'
+              ? `${name} — Cycling Profile`
+              : 'Cycling Metabolic Profile'}
+          </h2>
+          <p className="text-xs text-gray-400 mt-0.5">
+            {phenoDisplay.label}
+            {' · '}VO2max {vo2max.toFixed(1)} ml/kg/min
+            {' · '}VLamax {vlamax.toFixed(3)} mmol/L/s
+            {sex  && ` · ${sex}`}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap shrink-0">
+          {isPro && (
+            <button
+              onClick={onSendToFueling}
+              className="px-4 py-2 bg-violet-600 text-white text-sm font-bold rounded-xl hover:bg-violet-700 transition"
+            >
+              Open Cycling Fueling →
+            </button>
           )}
-        </button>
+          <button
+            onClick={handleExportPdf}
+            disabled={exporting}
+            className="shrink-0 flex items-center gap-1.5 px-3 py-1 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition disabled:opacity-50"
+          >
+            {exporting ? (
+              <>
+                <span className="animate-spin h-3 w-3 border border-gray-400 border-t-transparent rounded-full" />
+                Generating…
+              </>
+            ) : (
+              '↓ Export PDF'
+            )}
+          </button>
+        </div>
       </div>
 
       {/* ── Metric cards ───────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
 
         {/* Free metrics */}
         {freeMetrics.map(m => (
@@ -392,7 +330,10 @@ export default function ProfilerResultsV06({
 
         {/* Phenotype — ratio-based (vlamax / vo2max), display only */}
         <div className={`bg-white rounded-xl p-3 border shadow-sm ${phenoDisplay.colors}`}>
-          <p className="text-xs font-bold uppercase tracking-wider">Phenotype</p>
+          <p className="text-xs font-bold uppercase tracking-wider flex items-center gap-0.5">
+            Phenotype
+            <InfoTooltip term="Phenotype" />
+          </p>
           <p className="text-sm font-black mt-1">{phenoDisplay.label}</p>
           <p className="text-xs">metabolic tendency</p>
         </div>
@@ -511,91 +452,6 @@ export default function ProfilerResultsV06({
         }
 
         return <LactateCurveCard />;
-      })()}
-
-      {/* ── See How I Stack Up ────────────────────────────────────── */}
-      {(() => {
-        const weightKg = profile.inputs.weightKg;
-        const lt2Wkg   = mlssWatts / weightKg;
-
-        // All classification via lib/benchmarks/athleteBenchmarks — display only
-        const vo2Cls = classifyVO2max(vo2max, sex);
-        const vlaCls = classifyVlamax(vlamax, sex);
-        const lt2Cls = classifyLT2Wkg(lt2Wkg);
-
-        return (
-          <div className="rounded-xl border border-gray-200 shadow-sm bg-white">
-            <div className="flex items-center gap-3 px-4 py-3">
-              <p className="text-sm font-bold text-gray-800">See How I Stack Up</p>
-              <span className="text-xs text-gray-400 hidden sm:inline">Key physiological determinants of performance and fueling</span>
-              {sex && (
-                <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">
-                  {sex}{age ? ` · ${age} yrs` : ''}
-                </span>
-              )}
-              <button
-                onClick={() => setShowStackUp(v => !v)}
-                className="ml-auto text-xs font-semibold text-gray-500 hover:text-gray-800 transition shrink-0"
-              >
-                {showStackUp ? 'Hide ↑' : 'Details ↓'}
-              </button>
-            </div>
-
-            {showStackUp && (
-              <div className="border-t border-gray-100 px-4 pb-4 pt-3 space-y-3">
-                <p className="text-xs text-gray-400">
-                  Contextual comparison only — does not affect calculations.
-                  {sex
-                    ? <> Shown for <span className="font-medium text-gray-600">{sex}</span>.</>
-                    : ' No sex selected — using general reference bands.'}
-                </p>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-
-                  {/* VLamax */}
-                  <div className="rounded-lg border p-3 bg-gray-50">
-                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1 flex items-center">
-                      VLamax<InfoTooltip term="VLamax" />
-                    </p>
-                    <p className="text-xl font-black text-gray-900">
-                      {vlamax.toFixed(3)}<span className="text-sm font-semibold ml-1">mmol/L/s</span>
-                    </p>
-                    <span className={`inline-block mt-1 text-xs font-semibold px-2 py-0.5 rounded border ${vlaCls.color}`}>
-                      {vlaCls.category}
-                    </span>
-                  </div>
-
-                  {/* VO2max */}
-                  <div className="rounded-lg border p-3 bg-gray-50">
-                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1 flex items-center">
-                      VO2max<InfoTooltip term="VO2max" />
-                    </p>
-                    <p className="text-xl font-black text-gray-900">
-                      {vo2max.toFixed(1)}<span className="text-sm font-semibold ml-1">ml/kg/min</span>
-                    </p>
-                    <span className={`inline-block mt-1 text-xs font-semibold px-2 py-0.5 rounded border ${vo2Cls.color}`}>
-                      {vo2Cls.category}
-                    </span>
-                  </div>
-
-                  {/* LT2 W/kg */}
-                  <div className="rounded-lg border p-3 bg-gray-50">
-                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1 flex items-center">
-                      LT2<InfoTooltip term="LT2" />
-                    </p>
-                    <p className="text-xl font-black text-gray-900">
-                      {lt2Wkg.toFixed(2)}<span className="text-sm font-semibold ml-1">W/kg</span>
-                    </p>
-                    <span className={`inline-block mt-1 text-xs font-semibold px-2 py-0.5 rounded border ${lt2Cls.color}`}>
-                      {lt2Cls.category}
-                    </span>
-                  </div>
-
-                </div>
-              </div>
-            )}
-          </div>
-        );
       })()}
 
       {/* ── Fueling snapshot (free users) — reuses existing component unchanged ── */}
@@ -750,7 +606,6 @@ export default function ProfilerResultsV06({
           profile={profile}
           name={name}
           sex={sex}
-          age={age}
           dietType={dietType}
           isPro={isPro}
           laData={laData}

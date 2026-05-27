@@ -67,7 +67,7 @@ function deriveGE(vo2maxMlKgMin: number | undefined): number {
 }
 
 // 2. Substrate energy coefficients — per MODEL_EQUATIONS.md §7 Steps 4–5
-const FAT_KCAL_PER_G = 9.47;    // fat_kcal_h = fat_g_h × 9.47
+const FAT_KCAL_PER_G = 9.3;     // fat_kcal_h = fat_g_h × 9.3  (harmonised with run engine)
 const CHO_KCAL_PER_G = 4.18;    // cho_g_h = cho_kcal_h / 4.18
 
 // 3. Level derivation from MLSS/weight — used internally for xz and exported for DB storage.

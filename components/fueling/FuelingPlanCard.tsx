@@ -342,9 +342,6 @@ export default function FuelingPlanCard({
             onChange={onStrategy}
             plannedGph={plannedGph}
             recommendedGph={recommendedGph}
-            targetWatts={effectivePowerW}
-            mlssWatts={mlssWatts}
-            onPowerChange={onPowerChange}
             displayUnit={displayUnit}
           />
         </div>

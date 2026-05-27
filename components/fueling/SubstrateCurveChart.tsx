@@ -77,16 +77,6 @@ export default function SubstrateCurveChart({
         </p>
         <ResponsiveContainer width="100%" height={220}>
           <AreaChart data={chartData}>
-            <defs>
-              <linearGradient id="fatGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%"  stopColor="#f59e0b" stopOpacity={0.4} />
-                <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.1} />
-              </linearGradient>
-              <linearGradient id="choGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%"  stopColor="#3b82f6" stopOpacity={0.4} />
-                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.1} />
-              </linearGradient>
-            </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             <XAxis
               dataKey="watts"
@@ -145,17 +135,25 @@ export default function SubstrateCurveChart({
               label={<RefLabel label={`LT2 ${Math.round(mlssWatts)}W`} color="#ef4444" yOffset={LABEL_Y.lt2} />}
             />
 
-            {/* Stacked areas — fat base, cho on top */}
+            {/*
+              Stacked areas — fat base (amber, 0 → fatKcalH),
+              CHO on top (blue, fatKcalH → totalKcalH).
+              Total height = total substrate energy (kcal/h).
+
+              Solid fills used: a top-to-bottom gradient makes each area's
+              bottom boundary fade toward transparent, visually implying both
+              areas start at zero. Flat fills make the stack boundary clear.
+            */}
             <Area
               type="monotone" dataKey="fat" stackId="sub"
-              stroke="#f59e0b" strokeWidth={2}
-              fill="url(#fatGrad)"
+              stroke="#f59e0b" strokeWidth={1.5}
+              fill="#f59e0b" fillOpacity={0.45}
               name="fat"
             />
             <Area
               type="monotone" dataKey="cho" stackId="sub"
-              stroke="#3b82f6" strokeWidth={2}
-              fill="url(#choGrad)"
+              stroke="#3b82f6" strokeWidth={1.5}
+              fill="#3b82f6" fillOpacity={0.45}
               name="cho"
             />
           </AreaChart>

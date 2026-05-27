@@ -10,6 +10,17 @@ import FuelingTimeline from './FuelingTimeline';
 import FuelingPrintView from './FuelingPrintView';
 import InfoTooltip from '@/components/shared/InfoTooltip';
 import { exportToPdf } from '@/lib/pdf/exportPdf';
+import { ZONE_DOT, ZONE_ROW_BG } from '@/lib/zones/zoneDefinitions';
+
+// Maps cycling zone short names to shared ZONE_DOT / ZONE_ROW_BG keys
+const CYCLING_ZONE_STYLE: Record<string, string> = {
+  'Z1':  'Zone 1',
+  'Z2':  'Zone 2',
+  'Z3a': 'Zone 3A',
+  'Z3b': 'Zone 3B',
+  'Z4':  'Zone 4',
+  'Z5a': 'Zone 5A',
+};
 
 interface Props {
   result:          FuelingResult;
@@ -106,10 +117,10 @@ export default function FuelingResults({
     if (!printRef.current) return;
     setExporting(true);
     try {
-      const name = inputs.name && inputs.name !== 'Athlete'
-        ? `fueling-plan-${inputs.name.toLowerCase().replace(/\s+/g, '-')}`
-        : 'fueling-plan';
-      await exportToPdf(printRef.current, `${name}.pdf`);
+      const slug = inputs.name && inputs.name !== 'Athlete'
+        ? inputs.name.toLowerCase().replace(/\s+/g, '-')
+        : 'athlete';
+      await exportToPdf(printRef.current, `cycling-fueling-${slug}.pdf`);
     } finally {
       setExporting(false);
     }
@@ -148,11 +159,6 @@ export default function FuelingResults({
     [inputs.lt1Watts, inputs.mlssWatts],
   );
 
-  const activeZoneIdx = useMemo(() => displayZones.findIndex((z, i) => {
-    if (i === displayZones.length - 1) return effectivePowerW >= z.low;
-    return effectivePowerW >= z.low && effectivePowerW < z.high;
-  }), [displayZones, effectivePowerW]);
-
   // ── Live zone label ───────────────────────────────────────────────────────
   const liveZoneLabel =
     effectivePowerW < inputs.lt1Watts   ? 'Below LT1' :
@@ -162,33 +168,6 @@ export default function FuelingResults({
 
   return (
     <div className="space-y-5">
-
-      {/* Athlete context header */}
-      <div className="flex items-center gap-2 text-xs text-gray-500 pb-1 border-b border-gray-100 min-w-0">
-        {inputs.name && inputs.name !== 'Athlete' && (
-          <span className="font-semibold text-gray-700 truncate min-w-0">{inputs.name}</span>
-        )}
-        {inputs.sex && (
-          <span className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 shrink-0">{inputs.sex}</span>
-        )}
-        {inputs.age && (
-          <span className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 shrink-0">{inputs.age} yrs</span>
-        )}
-        <button
-          onClick={handleExportPdf}
-          disabled={exporting}
-          className="ml-auto shrink-0 flex items-center gap-1.5 px-3 py-1 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition disabled:opacity-50"
-        >
-          {exporting ? (
-            <>
-              <span className="animate-spin h-3 w-3 border border-gray-400 border-t-transparent rounded-full" />
-              Generating…
-            </>
-          ) : (
-            '↓ Export PDF'
-          )}
-        </button>
-      </div>
 
       {/* Key metrics row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -301,45 +280,49 @@ export default function FuelingResults({
 
       {/* Zone substrate table — display-layer, anchored to LT1/LT2 */}
       {displayZones.length > 0 && (
-        <div className="bg-white rounded-xl p-4 shadow-sm overflow-x-auto">
-          <h3 className="text-sm font-bold text-gray-800 mb-3">Zone Substrate Summary</h3>
-          <table className="w-full text-xs text-left">
-            <thead>
-              <tr className="text-gray-400 border-b border-gray-100">
-                <th className="pb-1.5 pr-3 font-semibold">Zone</th>
-                <th className="pb-1.5 pr-3 font-semibold text-right">W range</th>
-                <th className="pb-1.5 pr-3 font-semibold text-right">W mid</th>
-                <th className="pb-1.5 pr-3 font-semibold text-right text-amber-600">Fat g/h</th>
-                <th className="pb-1.5 pr-3 font-semibold text-right text-blue-600">CHO g/h</th>
-                <th className="pb-1.5 font-semibold text-right">kcal/h</th>
-              </tr>
-            </thead>
-            <tbody>
-              {displayZones.map((zone, i) => {
-                const mid  = Math.round((zone.low + zone.high) / 2);
-                const sub  = lookupSubstrateAtWatts(result.denseSubstrateSeries, mid);
-                const isActive = i === activeZoneIdx;
-                return (
-                  <tr
-                    key={zone.name}
-                    className={`border-b border-gray-50 last:border-0 ${isActive ? 'bg-violet-50' : ''}`}
-                  >
-                    <td className="py-1.5 pr-3">
-                      <span className={`font-semibold ${isActive ? 'text-violet-700' : 'text-gray-700'}`}>{zone.name}</span>
-                      <span className="ml-1.5 text-gray-400">{zone.label}</span>
-                    </td>
-                    <td className="py-1.5 pr-3 text-right tabular-nums text-gray-600">
-                      {zone.low}–{zone.high}
-                    </td>
-                    <td className="py-1.5 pr-3 text-right tabular-nums text-gray-400">{mid}</td>
-                    <td className="py-1.5 pr-3 text-right tabular-nums text-amber-700">{sub ? Math.round(sub.fatG) : '—'}</td>
-                    <td className="py-1.5 pr-3 text-right tabular-nums text-blue-700">{sub ? Math.round(sub.choG) : '—'}</td>
-                    <td className="py-1.5 text-right tabular-nums">{sub ? sub.kcalPerHour : '—'}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-100">
+            <h3 className="text-sm font-bold text-gray-800">Zone Substrate Summary</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-gray-100 text-gray-400">
+                  <th className="text-left px-4 py-2 font-semibold">Zone</th>
+                  <th className="text-right px-2 py-2 font-semibold whitespace-nowrap">W range</th>
+                  <th className="text-right px-2 py-2 font-semibold">W mid</th>
+                  <th className="text-right px-2 py-2 font-semibold text-amber-600">Fat g/h</th>
+                  <th className="text-right px-2 py-2 font-semibold text-blue-600">CHO g/h</th>
+                  <th className="text-right px-4 py-2 font-semibold">kcal/h</th>
+                </tr>
+              </thead>
+              <tbody>
+                {displayZones.map(zone => {
+                  const mid      = Math.round((zone.low + zone.high) / 2);
+                  const sub      = lookupSubstrateAtWatts(result.denseSubstrateSeries, mid);
+                  const styleKey = CYCLING_ZONE_STYLE[zone.name] ?? '';
+                  const dot      = ZONE_DOT[styleKey]    ?? 'bg-gray-400';
+                  const row      = ZONE_ROW_BG[styleKey] ?? 'bg-gray-50';
+                  return (
+                    <tr key={zone.name} className={`border-b border-gray-50 ${row}`}>
+                      <td className="px-4 py-2">
+                        <div className="flex items-center gap-2">
+                          <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${dot}`} />
+                          <span className="font-bold text-gray-700 whitespace-nowrap">{zone.name}</span>
+                          <span className="text-gray-500 hidden sm:inline">{zone.label}</span>
+                        </div>
+                      </td>
+                      <td className="px-2 py-2 text-right font-mono text-gray-600 whitespace-nowrap">{zone.low}–{zone.high}</td>
+                      <td className="px-2 py-2 text-right font-mono text-gray-400">{mid}</td>
+                      <td className="px-2 py-2 text-right text-amber-700 font-semibold">{sub ? Math.round(sub.fatG) : '—'}</td>
+                      <td className="px-2 py-2 text-right text-blue-700 font-semibold">{sub ? Math.round(sub.choG) : '—'}</td>
+                      <td className="px-4 py-2 text-right text-gray-700">{sub ? sub.kcalPerHour : '—'}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

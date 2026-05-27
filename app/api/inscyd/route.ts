@@ -89,6 +89,16 @@ export async function POST(req: NextRequest) {
         );
       }
 
+      if (athleteProfileId) {
+        const owns = await prisma.athleteProfile.findFirst({
+          where: { id: athleteProfileId, userId: user.id },
+          select: { id: true },
+        });
+        if (!owns) {
+          return NextResponse.json({ error: 'athlete_profile not found' }, { status: 404 });
+        }
+      }
+
       const saved = await prisma.inscydResult.create({
         data: {
           userId:           user.id,

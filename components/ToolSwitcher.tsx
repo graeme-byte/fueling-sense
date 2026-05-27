@@ -17,7 +17,7 @@ export default function ToolSwitcher({ active }: Props) {
             : 'text-gray-500 hover:text-gray-700'
         }`}
       >
-        Power Profiler
+        Cycling Profiler
       </Link>
       <Link
         href="/calculator/fueling"
@@ -27,7 +27,7 @@ export default function ToolSwitcher({ active }: Props) {
             : 'text-gray-500 hover:text-gray-700'
         }`}
       >
-        Fueling Sense
+        Cycling Fueling
       </Link>
     </div>
   );

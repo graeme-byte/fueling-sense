@@ -53,8 +53,8 @@ export default async function HomePage() {
         </h1>
 
         <p className="relative z-20 text-lg opacity-70 max-w-2xl leading-relaxed">
-          Start with a simple power test. Unlock your metabolic profile.
-          Then turn it into training, nutrition, and race-day execution.
+          A structured field test — on the bike or on foot. Estimate your metabolic profile.
+          Turn it into sport-specific training zones, substrate utilisation models, and race-day fueling strategy.
         </p>
 
         <div className="relative z-20 flex gap-4 flex-wrap justify-center">
@@ -62,13 +62,13 @@ export default async function HomePage() {
             href="/calculator/profiler"
             className="px-8 py-4 bg-white text-violet-900 font-black rounded-2xl text-base hover:bg-violet-100 transition shadow-xl"
           >
-            Start Free Profiler →
+            Cycling Profiler →
           </Link>
           <Link
-            href="/pricing"
+            href="/calculator/running-profiler"
             className="px-8 py-4 bg-white/10 border border-white/20 font-bold rounded-2xl text-base hover:bg-white/20 transition"
           >
-            Compare Plans
+            Running Profiler →
           </Link>
         </div>
       </section>
@@ -89,12 +89,12 @@ export default async function HomePage() {
               <span className="w-7 h-7 rounded-full bg-green-400 text-green-900 font-black text-xs flex items-center justify-center shrink-0">1</span>
               <span className="text-xs font-black uppercase tracking-widest text-green-400">Free</span>
             </div>
-            <h3 className="text-xl font-black mb-2">Measure your engine</h3>
+            <h3 className="text-xl font-black mb-2">Estimate your metabolic profile</h3>
             <p className="text-sm opacity-60 mb-5">
-              A 15-minute power test. Four efforts. Your complete metabolic fingerprint.
+              A short, structured field test. Estimate your metabolic fingerprint — for cycling or running.
             </p>
             <ul className="space-y-2 text-sm opacity-80 mb-6 flex-1">
-              {['VO2max (ml/kg/min)', 'VLamax (mmol/L/s)', 'Critical Power + W\'', 'Power–duration curve'].map(f => (
+              {['VO2max (ml/kg/min)', 'VLamax (mmol/L/s)', 'Metabolic thresholds (LT1 · LT2)', 'Personalised training zones'].map(f => (
                 <li key={f} className="flex items-center gap-2">
                   <span className="text-green-400 shrink-0">✓</span> {f}
                 </li>
@@ -103,12 +103,20 @@ export default async function HomePage() {
             <p className="text-xs opacity-50 italic mb-5">
               "Understand what your engine can produce"
             </p>
-            <Link
-              href="/calculator/profiler"
-              className="block text-center py-3 bg-white text-violet-900 font-bold rounded-xl hover:bg-violet-100 transition"
-            >
-              Start Free →
-            </Link>
+            <div className="flex flex-col gap-2">
+              <Link
+                href="/calculator/profiler"
+                className="block text-center py-2.5 bg-white text-violet-900 font-bold rounded-xl hover:bg-violet-100 transition"
+              >
+                Cycling Profiler →
+              </Link>
+              <Link
+                href="/calculator/running-profiler"
+                className="block text-center py-2.5 bg-white/10 border border-white/20 text-white font-semibold rounded-xl hover:bg-white/20 transition text-sm"
+              >
+                Running Profiler →
+              </Link>
+            </div>
           </div>
 
           {/* Step 2 — Pro */}
@@ -123,8 +131,8 @@ export default async function HomePage() {
             </p>
             <ul className="space-y-2 text-sm opacity-90 mb-6 flex-1">
               {[
-                'LT1 — aerobic threshold (W)',
-                'LT2 — anaerobic threshold (W)',
+                'LT1 — aerobic threshold',
+                'LT2 — anaerobic threshold',
                 'Personalised training zones',
                 'Track changes after every block',
               ].map(f => (
@@ -150,14 +158,14 @@ export default async function HomePage() {
               <span className="w-7 h-7 rounded-full bg-violet-400 text-violet-900 font-black text-xs flex items-center justify-center shrink-0">3</span>
               <span className="text-xs font-black uppercase tracking-widest text-violet-300">Fueling</span>
             </div>
-            <h3 className="text-xl font-black mb-2">Fuel your performance with precision</h3>
+            <h3 className="text-xl font-black mb-2">Model your fueling strategy</h3>
             <p className="text-sm opacity-60 mb-5">
-              Race nutrition built on your actual metabolism — not population averages.
+              Race nutrition modelled on your actual metabolism — for cycling and running. Not population averages.
             </p>
             <ul className="space-y-2 text-sm opacity-80 mb-6 flex-1">
               {[
                 'CHO demand at race intensity',
-                'Substrate oxidation curves',
+                'Substrate utilisation curves',
                 'Glucose–fructose strategy',
                 'Complete race fueling plan',
               ].map(f => (
@@ -194,7 +202,7 @@ export default async function HomePage() {
             {[
               { label: 'Training',  body: 'Your zones define which energy systems you develop — and which you leave undertrained.' },
               { label: 'Pacing',    body: 'Your thresholds define the intensity you can actually sustain across hours of racing.' },
-              { label: 'Fueling',   body: 'Your metabolism defines how much carbohydrate you burn — and how much you need to take in.' },
+              { label: 'Fueling',   body: 'Your metabolism defines how much carbohydrate you oxidise — and how much you need to take in.' },
             ].map(item => (
               <div key={item.label} className="bg-white/10 rounded-xl p-5">
                 <p className="text-xs font-black uppercase tracking-wider text-violet-300 mb-2">{item.label}</p>
@@ -220,9 +228,9 @@ export default async function HomePage() {
 
           <div className="grid md:grid-cols-3 gap-4 mb-10">
             {[
-              { heading: 'Pace to your physiology',   body: 'Hold power based on LT2 — the intensity you can actually sustain, not an arbitrary percentage of FTP.' },
-              { heading: 'Fuel the real demand',       body: 'Feed the carbohydrate your body actually burns at race intensity, not a generic sports-nutrition rule.' },
-              { heading: 'Avoid the two big mistakes', body: 'Overpacing and underfueling compound each other. Getting both right is what separates good days from great ones.' },
+              { heading: 'Pace to your threshold',     body: 'Hold intensity based on your lactate threshold — the effort you can actually sustain, derived from your own physiology.' },
+              { heading: 'Model the real demand',       body: 'Estimate the carbohydrate your body oxidises at race intensity. Use that as the basis for your fueling strategy, not a generic rule.' },
+              { heading: 'Avoid the two big mistakes', body: 'Overpacing and underfueling compound each other. Accurate models of both give you better decision support on race day.' },
             ].map(item => (
               <div key={item.heading} className="bg-white/10 rounded-xl p-5">
                 <p className="text-sm font-black mb-2">{item.heading}</p>
@@ -235,12 +243,18 @@ export default async function HomePage() {
             "Execute your race with confidence."
           </p>
 
-          <div className="flex justify-center">
+          <div className="flex justify-center gap-4 flex-wrap">
             <Link
               href="/calculator/profiler"
               className="px-8 py-4 bg-white text-violet-900 font-black rounded-2xl text-base hover:bg-violet-100 transition shadow-xl"
             >
-              Start with a free profile →
+              Start with Cycling Profiler →
+            </Link>
+            <Link
+              href="/calculator/running-profiler"
+              className="px-8 py-4 bg-white/10 border border-white/20 font-bold rounded-2xl text-base hover:bg-white/20 transition"
+            >
+              Start with Running Profiler →
             </Link>
           </div>
         </div>

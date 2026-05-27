@@ -1,6 +1,22 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+
+function SexButton({ value, current, onChange }: { value: string; current: string; onChange: (v: string) => void }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(value)}
+      className={`flex-1 py-2 text-xs font-semibold rounded-lg border transition ${
+        current === value
+          ? 'bg-violet-600 text-white border-violet-600'
+          : 'bg-white text-gray-600 border-gray-200 hover:border-violet-400'
+      }`}
+    >
+      {value}
+    </button>
+  );
+}
 import { useFuelingStore } from '@/lib/store/fuelingStore';
 import type { FuelingInputs, DietType, Sex, EventType } from '@/lib/types';
 import {
@@ -10,10 +26,12 @@ import {
 import type { SavedProfileData } from '@/app/actions/profile';
 
 interface Props {
-  onSubmit:     (inputs: FuelingInputs, config: FuelSourceConfig) => void;
-  loading:      boolean;
-  savedProfile: SavedProfileData | null;
-  onClear?:     () => void;
+  onSubmit:              (inputs: FuelingInputs, config: FuelSourceConfig) => void;
+  loading:               boolean;
+  savedProfile:          SavedProfileData | null;
+  onClear?:              () => void;
+  effectivePowerW?:      number;
+  onTargetPowerChange?:  (w: number) => void;
 }
 
 const SEXES: Sex[]           = ['Male', 'Female'];
@@ -46,8 +64,9 @@ function SourceToggle({
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function FuelingInputForm({ onSubmit, loading, savedProfile, onClear }: Props) {
+export default function FuelingInputForm({ onSubmit, loading, savedProfile, onClear, effectivePowerW, onTargetPowerChange }: Props) {
   const { inputs, error } = useFuelingStore();
+  const [sexState, setSexState] = useState<string>(inputs.sex ?? 'Male');
 
   const isPreFilled = !!inputs.inscydResultId;
 
@@ -55,18 +74,40 @@ export default function FuelingInputForm({ onSubmit, loading, savedProfile, onCl
     defaultConfigForEventType(inputs.eventType ?? 'Cycling 2–4h'),
   );
 
+  // Controlled target power state — syncs from effectivePowerW (post-calculation live value)
+  const mlssWattsVal = inputs.mlssWatts ?? 0;
+  function defaultPowerForEventType(et: EventType, mlss: number): number {
+    const pct = et.includes('<2h') ? 0.95 : et.includes('>4h') ? 0.75 : 0.85;
+    return mlss > 0 ? Math.round(mlss * pct) : 0;
+  }
+  const [powerW, setPowerW] = useState<string>(() => {
+    if (effectivePowerW && effectivePowerW > 0) return String(Math.round(effectivePowerW));
+    const def = defaultPowerForEventType(inputs.eventType ?? 'Cycling 2–4h', mlssWattsVal);
+    return def > 0 ? String(def) : '';
+  });
+
+  // Sync target power when a new calculation result arrives (effectivePowerW changes)
+  useEffect(() => {
+    if (effectivePowerW && effectivePowerW > 0) {
+      setPowerW(String(Math.round(effectivePowerW)));
+    }
+  }, [effectivePowerW]);
+
   function handleEventTypeChange(newType: EventType) {
     setFuelConfig(prev => ({
       ...prev,
       solids: { enabled: newType.includes('>4h') },
     }));
+    // Auto-update target power default when event type changes
+    if (mlssWattsVal > 0) {
+      setPowerW(String(defaultPowerForEventType(newType, mlssWattsVal)));
+    }
   }
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
 
-    const ageRaw    = parseFloat(fd.get('age') as string);
     const mlssWatts = parseFloat(fd.get('mlssWatts') as string);
     const eventType = fd.get('eventType') as EventType;
 
@@ -79,10 +120,10 @@ export default function FuelingInputForm({ onSubmit, loading, savedProfile, onCl
       eventType.includes('>4h') ? 0.75 :
       0.85;
 
+    const parsedPowerW = Math.round(parseFloat(powerW));
     const data: FuelingInputs = {
       name:     (fd.get('name') as string).trim() || 'Athlete',
       sex:      fd.get('sex') as Sex,
-      age:      isNaN(ageRaw) ? undefined : Math.round(ageRaw),
       weight:   parseFloat(fd.get('weight') as string),
       bodyFat:  parseFloat(fd.get('bodyFat') as string),
       dietType: fd.get('dietType') as DietType,
@@ -90,11 +131,11 @@ export default function FuelingInputForm({ onSubmit, loading, savedProfile, onCl
       mlssWatts,
       lt1Watts:     parseFloat(fd.get('lt1Watts') as string) || 0,
       vlamax:       parseFloat(fd.get('vlamax') as string) || undefined,
-      // Default power derived from event duration; user can adjust in the planner.
-      targetWatts:    Math.round(mlssWatts * defaultPacingPct),
+      // Use sidebar target power if set, else fall back to event-duration default
+      targetWatts:    !isNaN(parsedPowerW) && parsedPowerW >= 50 ? parsedPowerW : Math.round(mlssWatts * defaultPacingPct),
       targetCHO:      0,
       inscydResultId: inputs.inscydResultId,
-      vo2maxMlKgMin:  inputs.vo2maxMlKgMin,
+      vo2maxMlKgMin:  parseFloat(fd.get('vo2maxMlKgMin') as string) || inputs.vo2maxMlKgMin,
     };
     onSubmit(data, fuelConfig);
   }
@@ -143,38 +184,29 @@ export default function FuelingInputForm({ onSubmit, loading, savedProfile, onCl
 
       {/* Athlete */}
       <div>
-        <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Athlete</p>
-        <input
-          name="name"
-          type="text"
-          placeholder="Name / ID"
-          defaultValue={inputs.name}
-          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
-        />
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
+        <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">Athlete</p>
+        <div className="space-y-2">
           <div>
-            <label className="text-xs text-gray-500 mb-1 block">Sex</label>
-            <select
-              name="sex"
-              defaultValue={inputs.sex ?? 'Male'}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
-            >
-              {SEXES.map(s => <option key={s}>{s}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="text-xs text-gray-500 mb-1 block">Age (optional)</label>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Name / ID (optional)</label>
             <input
-              name="age"
-              type="number"
-              min={10} max={90} step={1}
-              defaultValue={inputs.age}
-              placeholder="e.g. 35"
+              name="name"
+              type="text"
+              placeholder="e.g. Jane Smith"
+              defaultValue={inputs.name}
               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
             />
           </div>
           <div>
-            <label className="text-xs text-gray-500 mb-1 block">Diet *</label>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Sex</label>
+            <div className="flex gap-2">
+              {SEXES.map(s => (
+                <SexButton key={s} value={s} current={sexState} onChange={setSexState} />
+              ))}
+            </div>
+            <input type="hidden" name="sex" value={sexState} />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Diet *</label>
             <select
               name="dietType"
               required
@@ -188,12 +220,14 @@ export default function FuelingInputForm({ onSubmit, loading, savedProfile, onCl
         </div>
       </div>
 
+      <hr className="border-gray-100" />
+
       {/* Body composition */}
       <div>
-        <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Body Composition</p>
+        <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">Body Composition</p>
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="text-xs text-gray-500 mb-1 block">Weight (kg) *</label>
+            <label className="text-xs font-semibold text-gray-600 mb-1 block">Body mass (kg) *</label>
             <input
               name="weight"
               type="number"
@@ -203,7 +237,7 @@ export default function FuelingInputForm({ onSubmit, loading, savedProfile, onCl
             />
           </div>
           <div>
-            <label className="text-xs text-gray-500 mb-1 block">Body Fat (%) *</label>
+            <label className="text-xs font-semibold text-gray-600 mb-1 block">Body fat (%) *</label>
             <input
               name="bodyFat"
               type="number"
@@ -215,56 +249,103 @@ export default function FuelingInputForm({ onSubmit, loading, savedProfile, onCl
         </div>
       </div>
 
-      {/* Performance */}
+      <hr className="border-gray-100" />
+
+      {/* Metabolic Anchors */}
       <div>
-        <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Performance</p>
+        <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">Metabolic Anchors</p>
+        <p className="text-xs text-gray-400 mb-3">From cycling profiler — power in watts</p>
         <div className="space-y-2">
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">LT2 (W) *</label>
+              <label className="text-xs font-semibold text-gray-600 mb-1 block">LT2 (W) *</label>
               <input
                 name="mlssWatts"
                 type="number"
                 required min={50} max={1200} step={1}
                 defaultValue={inputs.mlssWatts}
-                placeholder="e.g. 280"
+                placeholder="270"
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
               />
             </div>
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">VLamax (mmol/L/s)</label>
+              <label className="text-xs font-semibold text-gray-600 mb-1 block">LT1 (W)</label>
+              <input
+                name="lt1Watts"
+                type="number"
+                min={50} max={1200} step={1}
+                defaultValue={inputs.lt1Watts}
+                placeholder="200"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-xs font-semibold text-gray-600 mb-1 block">VLamax (mmol/L/s)</label>
               <input
                 name="vlamax"
                 type="number"
                 min={0.10} max={1.50} step={0.01}
                 defaultValue={inputs.vlamax}
-                placeholder="e.g. 0.45"
+                placeholder="0.45"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-600 mb-1 block">VO2max (mL/kg/min)</label>
+              <input
+                name="vo2maxMlKgMin"
+                type="number"
+                min={10} max={100} step={0.1}
+                defaultValue={inputs.vo2maxMlKgMin != null ? Math.round(inputs.vo2maxMlKgMin * 10) / 10 : ''}
+                placeholder="57.0"
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
               />
             </div>
           </div>
-          <input type="hidden" name="lt1Watts" value={inputs.lt1Watts ?? 0} />
-          <p className="text-xs text-gray-400">
-            Use your metabolic profile to auto-fill LT2 &amp; VLamax, or enter manually.
-          </p>
         </div>
       </div>
 
       {/* Session targets */}
       <div>
         <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Select Your Race Target</p>
-        <div>
-          <label className="text-xs text-gray-500 mb-1 block">Event Type &amp; Duration *</label>
-          <select
-            name="eventType"
-            required
-            defaultValue={inputs.eventType ?? 'Cycling 2–4h'}
-            onChange={e => handleEventTypeChange(e.target.value as EventType)}
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
-          >
-            {EVENT_TYPES.map(e => <option key={e}>{e}</option>)}
-          </select>
-          <p className="text-xs text-gray-400 mt-1">Starting power defaults from race duration and can be adjusted in the planner.</p>
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs font-semibold text-gray-600 mb-1 block">Event Type &amp; Duration *</label>
+            <select
+              name="eventType"
+              required
+              defaultValue={inputs.eventType ?? 'Cycling 2–4h'}
+              onChange={e => handleEventTypeChange(e.target.value as EventType)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+            >
+              {EVENT_TYPES.map(e => <option key={e}>{e}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-gray-600 mb-1 block">Target power (W)</label>
+            <input
+              type="number"
+              min={50} max={1200} step={1}
+              value={powerW}
+              placeholder={mlssWattsVal > 0 ? String(Math.round(mlssWattsVal * 0.85)) : '—'}
+              onChange={e => setPowerW(e.target.value)}
+              onBlur={() => {
+                const v = Math.round(parseFloat(powerW));
+                if (!isNaN(v) && v >= 50 && v <= 1200) {
+                  setPowerW(String(v));
+                  onTargetPowerChange?.(v);
+                }
+              }}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+            />
+            {powerW && !isNaN(parseFloat(powerW)) && mlssWattsVal > 0 && (
+              <p className="text-xs text-gray-400 mt-1">
+                {Math.round((parseFloat(powerW) / mlssWattsVal) * 100)}% LT2
+              </p>
+            )}
+          </div>
         </div>
       </div>
 
