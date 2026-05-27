@@ -9,7 +9,7 @@ import { createClient } from '@/lib/supabase/client';
 import FuelingInputForm from '@/components/fueling/FuelingInputForm';
 import FuelingResults from '@/components/fueling/FuelingResults';
 import LogoutButton from '@/components/LogoutButton';
-import ToolSwitcher from '@/components/ToolSwitcher';
+import AllToolsSwitcher from '@/components/AllToolsSwitcher';
 import GettingStartedPanel from '@/components/GettingStartedPanel';
 import {
   generateStrategyFromConfig,
@@ -158,11 +158,11 @@ export default function FuelingCalculatorPage() {
         <HeaderLogo href="/calculator/profiler" height={28} width={140} />
         <span className="text-gray-200 select-none hidden sm:inline">|</span>
         <div className="hidden sm:block">
-          <p className="text-sm font-bold text-gray-800 leading-tight">Fueling Calculator</p>
-          <p className="text-xs text-gray-400">Substrate · Personalised Fueling Recommendations</p>
+          <p className="text-sm font-bold text-gray-800 leading-tight">Cycling Fueling</p>
+          <p className="text-xs text-gray-400">Substrate utilization · CHO requirements · Fueling strategy</p>
         </div>
         <span className="text-xs font-bold bg-amber-100 text-amber-700 px-3 py-1 rounded-full">PRO</span>
-        <span className="hidden sm:block"><ToolSwitcher active="fueling" /></span>
+        <span className="hidden sm:block"><AllToolsSwitcher active="cycling-fueling" /></span>
         <div className="ml-auto flex items-center gap-3">
           <Link href="/support" className="text-xs text-gray-400 hover:text-gray-700 transition hidden sm:inline">Support</Link>
           {isLoggedIn && <LogoutButton className="text-xs text-gray-400 hover:text-gray-700 transition" />}
@@ -199,6 +199,8 @@ export default function FuelingCalculatorPage() {
             loading={loading}
             savedProfile={profilePrefilled ? savedProfile : null}
             onClear={profilePrefilled ? handleClearForm : undefined}
+            effectivePowerW={effectivePowerW > 0 ? effectivePowerW : undefined}
+            onTargetPowerChange={setLivePowerW}
           />
         </aside>
 
