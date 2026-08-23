@@ -10,7 +10,7 @@
  */
 
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, ReferenceLine, ResponsiveContainer,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, ReferenceLine,
 } from 'recharts';
 import { classifyVO2max, classifyVlamax, classifyLT2Wkg } from '@/lib/benchmarks/athleteBenchmarks';
 import type { MetabolicV06Result } from '@/lib/engine/metabolicModelV06';
@@ -142,29 +142,35 @@ export default function ProfilerPrintView({
           <div style={S.sectionLabel}>Lactate Accumulation Curve</div>
           <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: '12px 8px' }}>
             <div style={{ height: 200 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={laData} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis
-                    dataKey="w" type="number" domain={['dataMin', 'dataMax']}
-                    tick={{ fontSize: 9 }}
-                    label={{ value: 'W', position: 'insideBottomRight', offset: -5, fontSize: 8 }}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 9 }} domain={[0.5, 'auto']}
-                    label={{ value: 'mmol/L', angle: -90, position: 'insideLeft', fontSize: 8 }}
-                  />
-                  <ReferenceLine
-                    x={Math.round(lt1Watts)} stroke="#27ae60" strokeDasharray="4 4"
-                    label={{ value: 'LT1', position: 'insideTopRight', fontSize: 8, fill: '#27ae60' }}
-                  />
-                  <ReferenceLine
-                    x={Math.round(mlssWatts)} stroke="#f57c00" strokeDasharray="4 4"
-                    label={{ value: 'LT2', position: 'insideTopRight', fontSize: 8, fill: '#f57c00' }}
-                  />
-                  <Line dataKey="la" stroke="#e53935" strokeWidth={2} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
+              {/* Explicit pixel width/height, not ResponsiveContainer: this view is
+                  captured off-screen (position: fixed; left: -9999px) for PDF export,
+                  and ResponsiveContainer's ResizeObserver-based measurement never
+                  resolves off-screen — it gets stuck reporting width/height as -1,
+                  which produces a malformed SVG that breaks the whole html-to-image
+                  capture into a blank canvas. This view's width is always exactly
+                  794px (S.page.width) minus fixed padding, so there's nothing to
+                  measure at runtime — pass the known size directly. */}
+              <LineChart width={698} height={200} data={laData} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis
+                  dataKey="w" type="number" domain={['dataMin', 'dataMax']}
+                  tick={{ fontSize: 9 }}
+                  label={{ value: 'W', position: 'insideBottomRight', offset: -5, fontSize: 8 }}
+                />
+                <YAxis
+                  tick={{ fontSize: 9 }} domain={[0.5, 'auto']}
+                  label={{ value: 'mmol/L', angle: -90, position: 'insideLeft', fontSize: 8 }}
+                />
+                <ReferenceLine
+                  x={Math.round(lt1Watts)} stroke="#27ae60" strokeDasharray="4 4"
+                  label={{ value: 'LT1', position: 'insideTopRight', fontSize: 8, fill: '#27ae60' }}
+                />
+                <ReferenceLine
+                  x={Math.round(mlssWatts)} stroke="#f57c00" strokeDasharray="4 4"
+                  label={{ value: 'LT2', position: 'insideTopRight', fontSize: 8, fill: '#f57c00' }}
+                />
+                <Line dataKey="la" stroke="#e53935" strokeWidth={2} dot={false} />
+              </LineChart>
             </div>
           </div>
         </div>

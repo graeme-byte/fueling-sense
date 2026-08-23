@@ -108,9 +108,6 @@ function LoginForm() {
           We sent a confirmation link to <strong>{email}</strong>
         </p>
         <div className="flex flex-col gap-2 text-sm">
-          <Link href="/pricing" className="text-violet-600 font-semibold hover:underline">
-            Back to pricing
-          </Link>
           <Link href="/" className="text-gray-400 hover:text-gray-600 transition">
             Back to home
           </Link>
