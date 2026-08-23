@@ -85,7 +85,6 @@ const ZONE_PURPOSE: Record<string, string> = {
 export function exportRunningProfilePDF(
   profile:       RunningMetabolicProfile,
   name:          string,
-  isPro:         boolean,
   profilerZones: RunningProfilerZone[],
 ): void {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
@@ -142,8 +141,8 @@ export function exportRunningProfilePDF(
   const metrics = [
     { label: 'VLamax',       value: primary.vlamaxMmolLS.toFixed(3),              unit: 'mmol/L/s',  accent: '#ef4444' },
     { label: 'VO₂max',  value: primary.vo2maxMlKgMin.toFixed(1),             unit: 'mL/kg/min', accent: '#3b82f6' },
-    { label: 'LT2 Pace',     value: isPro ? primary.mlssPace : '––',    unit: 'min/km',    accent: '#f97316' },
-    { label: 'LT1 Pace',     value: isPro ? primary.lt1Pace  : '––',    unit: 'min/km',    accent: '#10b981' },
+    { label: 'LT2 Pace',     value: primary.mlssPace,                              unit: 'min/km',    accent: '#f97316' },
+    { label: 'LT1 Pace',     value: primary.lt1Pace,                               unit: 'min/km',    accent: '#10b981' },
     { label: 'Athlete Type', value: classification.type,                           unit: 'phenotype', accent: '#7c3aed' },
   ];
 
@@ -346,7 +345,7 @@ export function exportRunningProfilePDF(
   y += chartH + 9;
 
   // ── 5. Training zones ────────────────────────────────────────────────────────
-  if (isPro && profilerZones.length > 0) {
+  if (profilerZones.length > 0) {
     sectionLabel(doc, 'TRAINING ZONES', y);
     y += 4;
 

@@ -1,12 +1,12 @@
 /**
  * POST /api/running-fueling
  * ─────────────────────────────────────────────────────────────────────────────
- * Running fueling calculator endpoint — PAID TIER.
+ * Running fueling calculator endpoint.
  *
  * SOURCE OF TRUTH: running_metabolic_model_spec_v2_app_safe.md
  *
- * Auth: session + Pro subscription required (mirrors /api/fueling pattern).
- * DB:   no writes in this pass (running fueling results not yet persisted).
+ * Auth: none — pure computation, no auth or persistence (mirrors /api/running-profiler).
+ * DB:   no writes (running fueling results are not persisted).
  *
  * Inputs:
  *   Metabolic anchors from running profiler output
@@ -18,8 +18,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { calculateRunningFueling } from '@/lib/engine/runningFuelingEngine';
-import { createClient } from '@/lib/supabase/server';
-import { prisma } from '@/lib/db';
 
 const RunningFuelingSchema = z.object({
   // Athlete context
@@ -46,32 +44,8 @@ const RunningFuelingSchema = z.object({
   targetCHO:     z.number().min(0).max(300),
 });
 
-async function checkProAccess(userId: string): Promise<boolean> {
-  const sub = await prisma.subscription.findUnique({ where: { userId } });
-  if (!sub) return false;
-  if (sub.tier !== 'pro') return false;
-  if (sub.currentPeriodEnd && sub.currentPeriodEnd < new Date()) return false;
-  return true;
-}
-
 export async function POST(req: NextRequest) {
   try {
-    // ── Auth ──
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
-    }
-
-    // ── Pro gate ──
-    const isPro = await checkProAccess(user.id);
-    if (!isPro) {
-      return NextResponse.json(
-        { error: 'Pro subscription required', code: 'UPGRADE_REQUIRED', upgradeUrl: '/pricing' },
-        { status: 403 },
-      );
-    }
-
     // ── Validate ──
     let body: unknown;
     try {

@@ -22,7 +22,6 @@ interface Props {
   sex?:           'Male' | 'Female';
   age?:           number;
   dietType?:      string;
-  isPro:          boolean;
   laData:         { w: number; la: number }[];
   zones:          TrainingZone[];
   phenotypeLabel: 'Aerobic' | 'Mixed' | 'Glycolytic';
@@ -42,7 +41,7 @@ const S = {
 };
 
 export default function ProfilerPrintView({
-  profile, name, sex, age, dietType, isPro, laData, zones, phenotypeLabel,
+  profile, name, sex, age, dietType, laData, zones, phenotypeLabel,
 }: Props) {
   const { vlamax, vo2max, mlssWatts, lt1Watts } = profile.outputs;
   const { weightKg, bodyFatPct } = profile.inputs;
@@ -66,8 +65,8 @@ export default function ProfilerPrintView({
   const metrics = [
     { label: 'VLamax',  value: vlamax.toFixed(3),             unit: 'mmol/L/s',  border: '#ef4444' },
     { label: 'VO\u2082max', value: vo2max.toFixed(1),        unit: 'ml/kg/min', border: '#3b82f6' },
-    { label: 'LT1',     value: isPro ? String(Math.round(lt1Watts))   : '—', unit: isPro ? 'W' : 'Pro only', border: '#22c55e' },
-    { label: 'LT2',     value: isPro ? String(Math.round(mlssWatts))  : '—', unit: isPro ? 'W' : 'Pro only', border: '#f97316' },
+    { label: 'LT1',     value: String(Math.round(lt1Watts)),  unit: 'W', border: '#22c55e' },
+    { label: 'LT2',     value: String(Math.round(mlssWatts)), unit: 'W', border: '#f97316' },
   ];
 
   const benchmarks = [
@@ -155,33 +154,24 @@ export default function ProfilerPrintView({
                     tick={{ fontSize: 9 }} domain={[0.5, 'auto']}
                     label={{ value: 'mmol/L', angle: -90, position: 'insideLeft', fontSize: 8 }}
                   />
-                  {isPro && (
-                    <ReferenceLine
-                      x={Math.round(lt1Watts)} stroke="#27ae60" strokeDasharray="4 4"
-                      label={{ value: 'LT1', position: 'insideTopRight', fontSize: 8, fill: '#27ae60' }}
-                    />
-                  )}
-                  {isPro && (
-                    <ReferenceLine
-                      x={Math.round(mlssWatts)} stroke="#f57c00" strokeDasharray="4 4"
-                      label={{ value: 'LT2', position: 'insideTopRight', fontSize: 8, fill: '#f57c00' }}
-                    />
-                  )}
+                  <ReferenceLine
+                    x={Math.round(lt1Watts)} stroke="#27ae60" strokeDasharray="4 4"
+                    label={{ value: 'LT1', position: 'insideTopRight', fontSize: 8, fill: '#27ae60' }}
+                  />
+                  <ReferenceLine
+                    x={Math.round(mlssWatts)} stroke="#f57c00" strokeDasharray="4 4"
+                    label={{ value: 'LT2', position: 'insideTopRight', fontSize: 8, fill: '#f57c00' }}
+                  />
                   <Line dataKey="la" stroke="#e53935" strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
-            {!isPro && (
-              <p style={{ fontSize: 9, textAlign: 'center', color: '#9ca3af', marginTop: 4 }}>
-                LT1 and LT2 markers available on Pro
-              </p>
-            )}
           </div>
         </div>
       )}
 
       {/* ── Training zones ── */}
-      {isPro && zones.length > 0 && (
+      {zones.length > 0 && (
         <div style={{ marginBottom: 20 }}>
           <div style={S.sectionLabel}>Training Zones</div>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>

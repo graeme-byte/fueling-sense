@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import HeaderLogo from '@/components/shared/HeaderLogo';
 import LogoutButton from '@/components/LogoutButton';
@@ -10,9 +11,9 @@ import RunningFuelingResults from '@/components/running/RunningFuelingResults';
 import type { RunningFuelingInputs, RunningFuelingResult, RunningDietType, RunFuelConfig } from '@/lib/engine/runningTypes';
 import { useRunningStore } from '@/lib/store/runningStore';
 import { createClient } from '@/lib/supabase/client';
-import type { SubscriptionTier } from '@/lib/types';
 import { getSavedRunningProfileAction } from '@/app/actions/profile';
 import type { SavedRunningProfileData } from '@/app/actions/profile';
+import { savePendingResult, readPendingResult, clearPendingResult } from '@/lib/pendingResult';
 
 // g/h computation helpers (display-only — never fed back into engine calculations)
 function gelGph(carbsPerGel: number, everyMin: number)                   { return everyMin > 0 ? (carbsPerGel / everyMin) * 60 : 0; }
@@ -50,10 +51,10 @@ const DEFAULT_FUEL_CONFIG: RunFuelConfig = {
 };
 
 export default function RunningFuelingPage() {
+  const router = useRouter();
   const { fuelingInputs, setPendingAutoCalculate } = useRunningStore();
 
   const [isLoggedIn,       setIsLoggedIn]       = useState(false);
-  const [tier,             setTier]             = useState<SubscriptionTier>('free');
   const [loading,          setLoading]          = useState(false);
   const [error,            setError]            = useState<string | null>(null);
   const [result,           setResult]           = useState<RunningFuelingResult | null>(null);
@@ -61,11 +62,10 @@ export default function RunningFuelingPage() {
   const [savedProfile,     setSavedProfile]     = useState<SavedRunningProfileData | null>(null);
   const [profilePrefilled, setProfilePrefilled] = useState(false);
   const [fuelFormKey,      setFuelFormKey]      = useState(0);
+  const [restoredBanner,   setRestoredBanner]   = useState(false);
 
   // ── Fuel source configuration (lifted from form — shared with central panel) ──
   const [fuelConfig, setFuelConfig] = useState<RunFuelConfig>(DEFAULT_FUEL_CONFIG);
-
-  const isPro = tier === 'pro';
 
   // Derived g/h values (display-only, passed to both sidebar and central panel)
   const gphGels   = fuelConfig.gelsOn   ? gelGph(fuelConfig.gelCarbs, fuelConfig.gelFreq)                         : 0;
@@ -83,17 +83,22 @@ export default function RunningFuelingPage() {
     }
   }, [setPendingAutoCalculate]);
 
-  // Main mount effect: auth + tier + saved profile fallback
+  // Main mount effect: auth + saved profile fallback
   useEffect(() => {
     createClient().auth.getSession().then(async ({ data: { session } }) => {
       setIsLoggedIn(!!session);
 
-      fetch('/api/me')
-        .then(r => r.ok ? r.json() : null)
-        .then(d => { if (d?.tier === 'pro') setTier('pro'); })
-        .catch(() => {});
-
       if (!session) return;
+
+      // Restore a result stashed before signup (see handleCreateAccount below).
+      // Checked ahead of the saved-profile load below since a freshly-signed-up
+      // user won't have a saved profile yet — that guard must not skip this.
+      const pending = readPendingResult<RunningFuelingInputs>('running-fueling');
+      if (pending) {
+        clearPendingResult();
+        await handleCalculate(pending);
+        setRestoredBanner(true);
+      }
 
       try {
         const sp = await getSavedRunningProfileAction();
@@ -122,9 +127,9 @@ export default function RunningFuelingPage() {
     });
   }, []);
 
-  // Auto-calculate: fires once when isPro becomes true and a pending flag was captured at mount.
+  // Auto-calculate: fires once, after a pending flag was captured at mount.
   useEffect(() => {
-    if (!isPro || !pendingRef.current) return;
+    if (!pendingRef.current) return;
     pendingRef.current = false;
 
     const fi = useRunningStore.getState().fuelingInputs;
@@ -147,7 +152,13 @@ export default function RunningFuelingPage() {
     };
     handleCalculate(autoInputs);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPro]);
+  }, []);
+
+  function handleCreateAccount() {
+    if (!lastInputs) return;
+    savePendingResult('running-fueling', lastInputs);
+    router.push('/login?mode=signup&redirect=/calculator/running-fueling');
+  }
 
   async function handleCalculate(inputs: RunningFuelingInputs) {
     setLoading(true);
@@ -161,10 +172,6 @@ export default function RunningFuelingPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        if (res.status === 403 && data.code === 'UPGRADE_REQUIRED') {
-          setError('Pro subscription required to use Running Fueling. Upgrade at /pricing.');
-          return;
-        }
         setError(typeof data.error === 'string' ? data.error : 'Calculation failed');
         return;
       }
@@ -192,6 +199,13 @@ export default function RunningFuelingPage() {
   return (
     <div className="min-h-screen bg-gray-50">
 
+      {/* Restored-after-signup confirmation */}
+      {restoredBanner && (
+        <div className="bg-green-100 text-green-800 text-sm font-semibold text-center py-2 px-4">
+          ✓ Welcome — your fueling plan has been restored and saved to your account.
+        </div>
+      )}
+
       {/* Header */}
       <header className="bg-white px-4 sm:px-6 py-3 flex items-center gap-3 sm:gap-4 shadow-sm border-b border-gray-100">
         <HeaderLogo href="/calculator/running-fueling" height={28} width={140} />
@@ -200,30 +214,12 @@ export default function RunningFuelingPage() {
           <p className="text-sm font-bold text-gray-800 leading-tight">Running Fueling</p>
           <p className="text-xs text-gray-400">Substrate utilization · CHO requirements · Fueling strategy</p>
         </div>
-        {isPro ? (
-          <span className="text-xs font-bold bg-amber-100 text-amber-700 px-3 py-1 rounded-full">PRO</span>
-        ) : (
-          <span className="text-xs font-bold bg-gray-100 text-gray-500 px-3 py-1 rounded-full">PRO ONLY</span>
-        )}
         <span className="hidden sm:block"><AllToolsSwitcher active="running-fueling" /></span>
         <div className="ml-auto flex items-center gap-3">
           <Link href="/support" className="text-xs text-gray-400 hover:text-gray-700 transition hidden sm:inline">Support</Link>
           {isLoggedIn && <LogoutButton className="text-xs text-gray-400 hover:text-gray-700 transition" />}
         </div>
       </header>
-
-      {/* Pro gate banner */}
-      {!isPro && (
-        <div className="bg-amber-50 border-b border-amber-200 px-4 py-2.5 flex items-center justify-between gap-3">
-          <p className="text-sm text-amber-800">
-            Running Fueling requires a <strong>Pro subscription</strong>.
-            You can still enter values but calculation will be blocked.
-          </p>
-          <Link href="/pricing" className="shrink-0 px-4 py-1.5 bg-amber-500 text-white text-xs font-bold rounded-lg hover:bg-amber-600 transition">
-            Upgrade →
-          </Link>
-        </div>
-      )}
 
       <div className="flex flex-col lg:flex-row">
 
@@ -293,6 +289,8 @@ export default function RunningFuelingPage() {
               gphGels={gphGels}
               gphDrinks={gphDrinks}
               gphSolids={gphSolids}
+              isLoggedIn={isLoggedIn}
+              onCreateAccount={handleCreateAccount}
             />
           ) : (
             <div className="min-h-[40vh] flex flex-col items-center justify-center text-gray-400 gap-3">
@@ -306,16 +304,9 @@ export default function RunningFuelingPage() {
               {!loading && (
                 <>
                   <p className="text-sm">Enter your running profile values and click Calculate</p>
-                  {!isPro && (
-                    <Link href="/pricing" className="text-xs text-amber-600 hover:underline font-semibold">
-                      Upgrade to Pro to unlock →
-                    </Link>
-                  )}
-                  {isPro && (
-                    <Link href="/calculator/running-profiler" className="text-xs text-emerald-600 hover:underline">
-                      ← Get values from Running Profiler
-                    </Link>
-                  )}
+                  <Link href="/calculator/running-profiler" className="text-xs text-emerald-600 hover:underline">
+                    ← Get values from Running Profiler
+                  </Link>
                   <Link href="/calculator/fueling" className="text-xs text-gray-400 hover:text-gray-600 hover:underline mt-1">
                     ← Back to Cycling Fueling
                   </Link>

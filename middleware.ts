@@ -20,7 +20,6 @@ function isPublic(pathname: string): boolean {
 // ── Protected routes — require a valid session ───────────────────────────────
 
 const PROTECTED_PREFIXES = [
-  '/calculator/',
   '/account/',
   '/billing/',
   '/dashboard/',

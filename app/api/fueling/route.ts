@@ -1,7 +1,8 @@
 /**
  * POST /api/fueling
  * ──────────────────
- * PAID TIER endpoint. Requires authenticated user with Pro subscription.
+ * FREE TIER endpoint. No auth required to calculate; auth required only to save
+ * (mirrors /api/inscyd's pattern).
  *
  * Pipeline source of truth: MODEL_EQUATIONS.md
  * Before changing any model logic or result fields, verify against MODEL_EQUATIONS.md.
@@ -42,32 +43,8 @@ const FuelingInputSchema = z.object({
   save:             z.boolean().optional().default(true),
 });
 
-async function checkProAccess(userId: string): Promise<boolean> {
-  const sub = await prisma.subscription.findUnique({ where: { userId } });
-  if (!sub) return false;
-  if (sub.tier !== 'pro') return false;
-  if (sub.currentPeriodEnd && sub.currentPeriodEnd < new Date()) return false;
-  return true;
-}
-
 export async function POST(req: NextRequest) {
   try {
-    // ── Auth gate ──
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
-    }
-
-    // ── Subscription gate ──
-    const isPro = await checkProAccess(user.id);
-    if (!isPro) {
-      return NextResponse.json(
-        { error: 'Pro subscription required', code: 'UPGRADE_REQUIRED', upgradeUrl: '/pricing' },
-        { status: 403 },
-      );
-    }
-
     // ── Validate input ──
     const body = await req.json();
     const parsed = FuelingInputSchema.safeParse(body);
@@ -104,9 +81,15 @@ export async function POST(req: NextRequest) {
     // ── Calculate ──
     const result = runFuelingCalculation(inputs);
 
-    // ── Persist ──
+    // ── Persist — requires auth only when saving; pure calculation is anonymous ──
     let savedId: string | null = null;
     if (save) {
+      const supabase = await createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        return NextResponse.json({ error: 'Authentication required to save results' }, { status: 401 });
+      }
+
       // Strip denseSubstrateSeries from the persisted blob — it is recomputable from
       // fatmaxWkg + xf + xz + mlssWatts + ge and inflates row size significantly.
       // The full result (including denseSubstrateSeries) is still returned to the UI below.
@@ -184,11 +167,6 @@ export async function GET(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
-  }
-
-  const isPro = await checkProAccess(user.id);
-  if (!isPro) {
-    return NextResponse.json({ error: 'Pro subscription required', code: 'UPGRADE_REQUIRED' }, { status: 403 });
   }
 
   const inscydId = req.nextUrl.searchParams.get('inscydId');

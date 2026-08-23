@@ -6,21 +6,19 @@ import {
   ResponsiveContainer, ReferenceLine,
 } from 'recharts';
 import type { MetabolicV06Result } from '@/lib/engine/metabolicModelV06';
-import type { INSCYDToFuelingSenseBridge, SubscriptionTier } from '@/lib/types';
+import type { INSCYDToFuelingSenseBridge } from '@/lib/types';
 // fitLactate / lactateCurve not used — v0.6 uses a VLamax-aware curve (see laPoint below).
 import { calcV06TrainingZones } from '@/lib/engine/v06Zones';
 import { ZONE_INFO, ZONE_DOT, ZONE_ROW_BG } from '@/lib/zones/zoneDefinitions';
 import type { ZoneInfoContent } from '@/lib/zones/zoneDefinitions';
-import FuelingSnapshot from './FuelingSnapshot';
 import ProfilerPrintView from './ProfilerPrintView';
 import InfoTooltip from '@/components/shared/InfoTooltip';
-import Link from 'next/link';
 import { exportToPdf } from '@/lib/pdf/exportPdf';
+import SaveAccountPrompt from '@/components/SaveAccountPrompt';
 
 interface Props {
   profile:         MetabolicV06Result;
   fuelingPrefill:  INSCYDToFuelingSenseBridge;
-  tier:            SubscriptionTier;
   onSendToFueling: () => void;
   // Athlete context — display/benchmarking only, no model impact
   name?:     string;
@@ -31,6 +29,8 @@ interface Props {
   saveState?:       'idle' | 'saving' | 'saved' | 'error';
   hasSavedProfile?: boolean;
   isLoggedIn?:      boolean;
+  // Stashes the current result and sends a logged-out user to signup
+  onCreateAccount?: () => void;
 }
 
 // Benchmarking functions imported from lib/benchmarks/athleteBenchmarks.ts
@@ -58,16 +58,6 @@ function deriveV06PhenotypeDisplay(
   if (index < 0.006)  return { label: 'Aerobic',    colors: 'text-green-600 bg-green-50 border-green-200' };
   if (index <= 0.012) return { label: 'Mixed',       colors: 'text-amber-600 bg-amber-50 border-amber-200' };
   return                     { label: 'Glycolytic',  colors: 'text-red-600 bg-red-50 border-red-200' };
-}
-
-function LockedCard({ label, hint }: { label: string; hint: string }) {
-  return (
-    <div className="bg-white rounded-xl p-3 border-l-4 border-violet-200 shadow-sm">
-      <p className="text-xs font-bold uppercase tracking-wider text-gray-400">{label}</p>
-      <p className="text-xl font-black text-violet-200 mt-1">––</p>
-      <p className="text-xs text-violet-400 font-semibold">Pro · {hint}</p>
-    </div>
-  );
 }
 
 // ── Zone info content ────────────────────────────────────────────────────────
@@ -165,12 +155,12 @@ function ZoneInfoPopover({ zoneName }: { zoneName: string }) {
 // ZONE_DOT and ZONE_ROW_BG imported from lib/zones/zoneDefinitions
 
 export default function ProfilerResultsV06({
-  profile, fuelingPrefill, tier, onSendToFueling, name, sex, dietType,
+  profile, fuelingPrefill, onSendToFueling, name, sex, dietType,
   onSaveToProfile, saveState = 'idle', hasSavedProfile = false, isLoggedIn = false,
+  onCreateAccount,
 }: Props) {
   const { outputs } = profile;
   const { vlamax, vo2max, mlssWatts, lt1Watts } = outputs;
-  const isPro = tier === 'pro';
 
   const [showZoneDetails, setShowZoneDetails] = useState(false);
   const [exporting,       setExporting]       = useState(false);
@@ -188,9 +178,7 @@ export default function ProfilerResultsV06({
       setExporting(false);
     }
   }, [sex]);
-  const zones = isPro
-    ? calcV06TrainingZones(lt1Watts, mlssWatts, profile.inputs.p300, profile.inputs.p20)
-    : [];
+  const zones = calcV06TrainingZones(lt1Watts, mlssWatts, profile.inputs.p300, profile.inputs.p20);
 
   // Phenotype derived from vlamax/vo2max ratio — display only.
   // fuelingPrefill.phenotype (legacy VLamax threshold) is intentionally not used here.
@@ -269,14 +257,12 @@ export default function ProfilerResultsV06({
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap shrink-0">
-          {isPro && (
-            <button
-              onClick={onSendToFueling}
-              className="px-4 py-2 bg-violet-600 text-white text-sm font-bold rounded-xl hover:bg-violet-700 transition"
-            >
-              Open Cycling Fueling →
-            </button>
-          )}
+          <button
+            onClick={onSendToFueling}
+            className="px-4 py-2 bg-violet-600 text-white text-sm font-bold rounded-xl hover:bg-violet-700 transition"
+          >
+            Open Cycling Fueling →
+          </button>
           <button
             onClick={handleExportPdf}
             disabled={exporting}
@@ -309,24 +295,17 @@ export default function ProfilerResultsV06({
           </div>
         ))}
 
-        {/* Pro-gated thresholds */}
-        {isPro ? (
-          proMetrics.map(m => (
-            <div key={m.label} className={`bg-white rounded-xl p-3 border-l-4 shadow-sm ${m.color}`}>
-              <p className="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center gap-0.5">
-                {m.label}
-                <InfoTooltip term={m.label as 'LT1' | 'LT2'} />
-              </p>
-              <p className="text-xl font-black text-gray-900 mt-1">{m.value}</p>
-              <p className="text-xs text-gray-400">{m.unit}</p>
-            </div>
-          ))
-        ) : (
-          <>
-            <LockedCard label="LT1" hint="aerobic threshold" />
-            <LockedCard label="LT2" hint="anaerobic threshold" />
-          </>
-        )}
+        {/* Thresholds */}
+        {proMetrics.map(m => (
+          <div key={m.label} className={`bg-white rounded-xl p-3 border-l-4 shadow-sm ${m.color}`}>
+            <p className="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center gap-0.5">
+              {m.label}
+              <InfoTooltip term={m.label as 'LT1' | 'LT2'} />
+            </p>
+            <p className="text-xl font-black text-gray-900 mt-1">{m.value}</p>
+            <p className="text-xs text-gray-400">{m.unit}</p>
+          </div>
+        ))}
 
         {/* Phenotype — ratio-based (vlamax / vo2max), display only */}
         <div className={`bg-white rounded-xl p-3 border shadow-sm ${phenoDisplay.colors}`}>
@@ -340,22 +319,13 @@ export default function ProfilerResultsV06({
 
       </div>
 
-      {/* ── Pro upgrade prompt ──────────────────────────────────────── */}
-      {!isPro && (
-        <div className="bg-violet-50 border border-violet-200 rounded-xl p-4 flex items-start gap-4">
-          <div className="flex-1">
-            <p className="text-sm font-bold text-violet-900">Your thresholds are calculated — unlock them with Pro</p>
-            <p className="text-xs text-violet-700 mt-1">
-              LT1, LT2, and personalised training zones are ready. Subscribe to reveal them, rerun your profile after each training block, and track how your thresholds change over time.
-            </p>
-          </div>
-          <Link
-            href="/pricing"
-            className="shrink-0 px-4 py-2 bg-violet-600 text-white text-xs font-black rounded-lg hover:bg-violet-700 transition"
-          >
-            Unlock →
-          </Link>
-        </div>
+      {/* ── Save-account offer — logged-out users only ──────────────── */}
+      {!isLoggedIn && onCreateAccount && (
+        <SaveAccountPrompt
+          headline="Save this profile"
+          body="Create a free account to keep this result — reload it anytime without retesting, and use it to prefill your fueling plan."
+          onCreateAccount={onCreateAccount}
+        />
       )}
 
       {/* ── Lactate curve ──────────────────────────────────────────── */}
@@ -371,8 +341,8 @@ export default function ProfilerResultsV06({
                 <XAxis dataKey="w" type="number" domain={['dataMin', 'dataMax']} tick={{ fontSize: 10 }} label={{ value: 'W', position: 'insideBottomRight', offset: -5, fontSize: 9 }} />
                 <YAxis tick={{ fontSize: 10 }} domain={[0.5, 'auto']} label={{ value: 'mmol/L', angle: -90, position: 'insideLeft', fontSize: 9 }} />
                 <Tooltip formatter={(v) => [`${Number(v)} mmol/L`, 'Lactate']} />
-                {isPro && <ReferenceLine x={Math.round(lt1Watts)}  stroke="#27ae60" strokeDasharray="4 4" label={{ value: 'LT1', position: 'insideTopRight', fontSize: 9, fill: '#27ae60' }} />}
-                {isPro && <ReferenceLine x={Math.round(mlssWatts)} stroke="#f57c00" strokeDasharray="4 4" label={{ value: 'LT2', position: 'insideTopRight', fontSize: 9, fill: '#f57c00' }} />}
+                <ReferenceLine x={Math.round(lt1Watts)}  stroke="#27ae60" strokeDasharray="4 4" label={{ value: 'LT1', position: 'insideTopRight', fontSize: 9, fill: '#27ae60' }} />
+                <ReferenceLine x={Math.round(mlssWatts)} stroke="#f57c00" strokeDasharray="4 4" label={{ value: 'LT2', position: 'insideTopRight', fontSize: 9, fill: '#f57c00' }} />
                 <Line dataKey="la" stroke="#e53935" strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
@@ -412,9 +382,6 @@ export default function ProfilerResultsV06({
                 {laRange > 0 ? (
                   <>
                     <LactateChart height={200} />
-                    {!isPro && (
-                      <p className="text-xs text-center text-gray-400 mt-2">LT1 and LT2 markers visible on Pro</p>
-                    )}
                   </>
                 ) : (
                   <p className="text-xs text-gray-400 text-center py-8">Lactate curve unavailable for this input combination.</p>
@@ -441,9 +408,6 @@ export default function ProfilerResultsV06({
                       </button>
                     </div>
                     <LactateChart height={380} />
-                    {!isPro && (
-                      <p className="text-xs text-center text-gray-400 mt-2">LT1 and LT2 markers visible on Pro</p>
-                    )}
                   </div>
                 </div>
               )}
@@ -454,13 +418,9 @@ export default function ProfilerResultsV06({
         return <LactateCurveCard />;
       })()}
 
-      {/* ── Fueling snapshot (free users) — reuses existing component unchanged ── */}
-      {!isPro && <FuelingSnapshot mlss={mlssWatts} />}
-
       {/* ── Training zones ─────────────────────────────────────────── */}
       {/* Pro-gated — anchored to LT1, LT2, P300, P20 (no CP, no W′). */}
-      {isPro ? (
-        <div className="bg-white rounded-xl p-4 shadow-sm">
+      <div className="bg-white rounded-xl p-4 shadow-sm">
           <h3 className="text-sm font-bold text-gray-800 mb-3">Training Zones</h3>
 
           {/* Zone rows */}
@@ -546,30 +506,9 @@ export default function ProfilerResultsV06({
             </div>
           )}
         </div>
-      ) : (
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-dashed border-gray-200">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-bold text-gray-400">Training Zones</h3>
-            <Link href="/pricing" className="text-xs font-bold text-violet-600 hover:underline">
-              Unlock with Pro →
-            </Link>
-          </div>
-          <div className="flex flex-col gap-1">
-            {Array.from({ length: 7 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-3 rounded-lg px-4 py-2.5 bg-gray-50 opacity-40">
-                <span className="w-2.5 h-2.5 rounded-full bg-gray-300 shrink-0" />
-                <span className="text-xs font-black text-gray-300 w-14 shrink-0">Zone {i + 1}</span>
-                <span className="flex-1" />
-                <span className="text-sm font-bold text-gray-300 tabular-nums">––– W</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* ── CTA ────────────────────────────────────────────────────── */}
-      {isPro ? (
-        <div className="bg-gradient-to-r from-violet-600 to-blue-600 rounded-xl p-5 text-white">
+      <div className="bg-gradient-to-r from-violet-600 to-blue-600 rounded-xl p-5 text-white">
           <h3 className="font-bold text-base">Next: race nutrition planning</h3>
           <p className="text-sm opacity-80 mt-1">
             Use your LT2 and VLamax to model substrate oxidation and get personalised fueling recommendations for any race or session.
@@ -581,20 +520,6 @@ export default function ProfilerResultsV06({
             Open Fueling Sense →
           </button>
         </div>
-      ) : (
-        <div className="bg-gradient-to-r from-violet-600 to-blue-600 rounded-xl p-5 text-white">
-          <h3 className="font-bold text-base">This isn't a one-off test</h3>
-          <p className="text-sm opacity-80 mt-1">
-            Pro gives you ongoing access. Rerun after every training block, see how LT1 and LT2 shift, and watch your zones update as your fitness changes.
-          </p>
-          <Link
-            href="/pricing"
-            className="inline-block mt-3 px-5 py-2 bg-white text-violet-700 font-bold rounded-lg text-sm hover:bg-violet-50 transition"
-          >
-            See Pro plans →
-          </Link>
-        </div>
-      )}
 
       {/* Hidden print view — off-screen, always rendered so html2canvas can capture it */}
       <div
@@ -607,7 +532,6 @@ export default function ProfilerResultsV06({
           name={name}
           sex={sex}
           dietType={dietType}
-          isPro={isPro}
           laData={laData}
           zones={zones}
           phenotypeLabel={phenoDisplay.label}

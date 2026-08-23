@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import HeaderLogo from '@/components/shared/HeaderLogo';
@@ -10,20 +10,26 @@ import ProfilerInputFormV06 from '@/components/inscyd/ProfilerInputFormV06';
 import ProfilerResultsV06 from '@/components/inscyd/ProfilerResultsV06';
 import type { ProfilerV06FormPayload } from '@/components/inscyd/ProfilerInputFormV06';
 import type { MetabolicV06Result } from '@/lib/engine/metabolicModelV06';
-import type { INSCYDToFuelingSenseBridge, SubscriptionTier } from '@/lib/types';
+import type { INSCYDToFuelingSenseBridge } from '@/lib/types';
 import LogoutButton from '@/components/LogoutButton';
 import AllToolsSwitcher from '@/components/AllToolsSwitcher';
 import GettingStartedPanel from '@/components/GettingStartedPanel';
 import { saveProfileAction, getSavedProfileAction } from '@/app/actions/profile';
 import type { SavedProfileData } from '@/app/actions/profile';
+import { savePendingResult, readPendingResult, clearPendingResult } from '@/lib/pendingResult';
 
 export default function ProfilerPage() {
   const router = useRouter();
   const { prefillFromInscyd } = useFuelingStore();
   const [isLoggedIn,   setIsLoggedIn]   = useState(false);
-  const [tier,         setTier]         = useState<SubscriptionTier>('free');
-  const [justUpgraded, setJustUpgraded] = useState(false);
-  const [upgradeState, setUpgradeState] = useState<'waiting' | 'confirmed' | 'timeout'>('waiting');
+  // Last submitted form payload — stashed if the user creates an account from
+  // this result, so the signup round trip can regenerate it without asking
+  // them to re-enter anything.
+  const lastPayloadRef = useRef<ProfilerV06FormPayload | null>(null);
+  // Set once a restore-triggered calculation is in flight, so the follow-up
+  // effect knows to auto-save it (rather than every ordinary calculation).
+  const pendingRestoreRef = useRef(false);
+  const [restoredBanner, setRestoredBanner] = useState(false);
 
   // v0.6 result state — local only (inscydStore is typed for InscydResult, not MetabolicV06Result)
   const [loading,        setLoading]        = useState(false);
@@ -38,67 +44,47 @@ export default function ProfilerPage() {
   const [savedProfileData, setSavedProfileData] = useState<SavedProfileData | null>(null);
   const [profileLoaded,    setProfileLoaded]    = useState(false);
   const [profilerFormKey,  setProfilerFormKey]  = useState(0);
-  // Derived — single source of truth for Pro entitlement.
-  // Always comes from the /api/me response (DB subscription row), never from URL params.
-  const isPro           = tier === 'pro';
   const hasSavedProfile = !!savedProfileData;
   // Save-to-profile state
   const [saveState,  setSaveState]  = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [saveError,  setSaveError]  = useState<string>('');
 
   useEffect(() => {
-    const upgraded = new URLSearchParams(window.location.search).get('upgraded') === '1';
-    setJustUpgraded(upgraded);
-
     createClient().auth.getSession().then(async ({ data: { session } }) => {
       setIsLoggedIn(!!session);
       if (session) {
         const sp = await getSavedProfileAction();
         setSavedProfileData(sp);
+
+        // Restore a result stashed before signup (see handleCreateAccount below).
+        const pending = readPendingResult<ProfilerV06FormPayload>('cycling-profile');
+        if (pending) {
+          clearPendingResult();
+          pendingRestoreRef.current = true;
+          handleCalculate(pending);
+        }
       }
     });
-
-    async function fetchTier(): Promise<SubscriptionTier> {
-      try {
-        const r = await fetch('/api/me');
-        if (!r.ok) return 'free';
-        const d = await r.json();
-        return d?.tier === 'pro' ? 'pro' : 'free';
-      } catch {
-        return 'free';
-      }
-    }
-
-    if (!upgraded) {
-      fetchTier().then(t => setTier(t));
-      return;
-    }
-
-    // Post-upgrade: poll until pro or timeout (30 s, every 2 s).
-    // Stripe webhooks in production can take 15–30 s to arrive and process.
-    const POLL_INTERVAL_MS = 2000;
-    const POLL_TIMEOUT_MS  = 30_000;
-    const startedAt = Date.now();
-    let intervalId: ReturnType<typeof setInterval>;
-
-    async function poll() {
-      const t = await fetchTier();
-      setTier(t);
-      if (t === 'pro') {
-        clearInterval(intervalId);
-        setUpgradeState('confirmed');
-      } else if (Date.now() - startedAt >= POLL_TIMEOUT_MS) {
-        clearInterval(intervalId);
-        setUpgradeState('timeout');
-      }
-    }
-
-    poll();
-    intervalId = setInterval(poll, POLL_INTERVAL_MS);
-    return () => clearInterval(intervalId);
   }, []);
 
+  // Once the restored calculation lands, save it automatically — the user
+  // already asked for this by clicking "Create free account" — then surface
+  // an unambiguous confirmation.
+  useEffect(() => {
+    if (!pendingRestoreRef.current || !profile || !fuelingPrefill) return;
+    pendingRestoreRef.current = false;
+    handleSaveToProfile().then(() => setRestoredBanner(true));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile, fuelingPrefill]);
+
+  function handleCreateAccount() {
+    if (!lastPayloadRef.current) return;
+    savePendingResult('cycling-profile', lastPayloadRef.current);
+    router.push('/login?mode=signup&redirect=/calculator/profiler');
+  }
+
   async function handleCalculate(payload: ProfilerV06FormPayload) {
+    lastPayloadRef.current = payload;
     setLoading(true);
     setError(null);
     try {
@@ -198,26 +184,10 @@ export default function ProfilerPage() {
   return (
     <div className="min-h-screen bg-gray-50">
 
-      {/* Upgrade banner — unchanged from previous version */}
-      {justUpgraded && upgradeState === 'confirmed' && (
-        <div className="bg-amber-400 text-amber-900 text-sm font-semibold text-center py-2 px-4">
-          Pro unlocked — your thresholds and zones are now available
-        </div>
-      )}
-      {justUpgraded && upgradeState === 'waiting' && tier === 'free' && (
-        <div className="bg-amber-100 text-amber-800 text-sm text-center py-2 px-4">
-          Confirming your subscription…
-        </div>
-      )}
-      {justUpgraded && upgradeState === 'timeout' && (
-        <div className="bg-amber-100 text-amber-800 text-sm text-center py-2 px-4 flex items-center justify-center gap-3">
-          <span>We&apos;re still confirming your subscription.</span>
-          <button
-            onClick={() => window.location.reload()}
-            className="underline font-semibold hover:text-amber-900 transition"
-          >
-            Refresh now
-          </button>
+      {/* Restored-after-signup confirmation */}
+      {restoredBanner && (
+        <div className="bg-green-100 text-green-800 text-sm font-semibold text-center py-2 px-4">
+          ✓ Welcome — your cycling profile has been restored and saved to your account.
         </div>
       )}
 
@@ -229,11 +199,6 @@ export default function ProfilerPage() {
           <p className="text-sm font-bold text-gray-800 leading-tight">Metabolic Profiler</p>
           <p className="text-xs text-gray-400">VO2max · VLamax · LT1 · LT2</p>
         </div>
-        {isPro ? (
-          <span className="text-xs font-bold bg-amber-100 text-amber-700 px-3 py-1 rounded-full">✓ PRO</span>
-        ) : (
-          <span className="text-xs font-bold bg-green-100 text-green-700 px-3 py-1 rounded-full">FREE</span>
-        )}
         <span className="hidden sm:block"><AllToolsSwitcher active="cycling-profiler" /></span>
         <div className="ml-auto flex items-center gap-3">
           <Link href="/support" className="text-xs text-gray-400 hover:text-gray-700 transition hidden sm:inline">Support</Link>
@@ -381,13 +346,12 @@ export default function ProfilerPage() {
         {/* Right: Results panel */}
         <main className="flex-1 p-5">
           <div className="hidden lg:block">
-            <GettingStartedPanel context="profiler" isProUser={isPro} />
+            <GettingStartedPanel context="profiler" />
           </div>
           {profile && fuelingPrefill ? (
             <ProfilerResultsV06
               profile={profile}
               fuelingPrefill={fuelingPrefill}
-              tier={tier}
               onSendToFueling={handleSendToFueling}
               name={athleteName}
               sex={athleteSex}
@@ -396,6 +360,7 @@ export default function ProfilerPage() {
               saveState={saveState}
               hasSavedProfile={hasSavedProfile}
               isLoggedIn={isLoggedIn}
+              onCreateAccount={handleCreateAccount}
             />
           ) : (
             <div className="min-h-[40vh] flex flex-col items-center justify-center text-gray-400 gap-3">
