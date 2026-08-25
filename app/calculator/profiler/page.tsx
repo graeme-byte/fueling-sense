@@ -346,7 +346,7 @@ export default function ProfilerPage() {
         {/* Right: Results panel */}
         <main className="flex-1 p-5">
           <div className="hidden lg:block">
-            <GettingStartedPanel context="profiler" />
+            <GettingStartedPanel context="profiler" isLoggedIn={isLoggedIn} />
           </div>
           {profile && fuelingPrefill ? (
             <ProfilerResultsV06

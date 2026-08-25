@@ -17,13 +17,13 @@ export default async function HomePage() {
           {user ? (
             <LogoutButton className="text-sm text-gray-500 hover:text-gray-800 transition" />
           ) : (
-            <Link href="/login" className="text-sm text-gray-500 hover:text-gray-800 transition">Sign in</Link>
+            <Link href="/login" className="text-sm text-gray-500 hover:text-gray-800 transition">Log in</Link>
           )}
           <Link
             href="/calculator/profiler"
             className="px-4 py-2 bg-violet-600 text-white font-bold rounded-full text-sm hover:bg-violet-700 transition"
           >
-            {user ? 'Launch App' : 'Start Free'}
+            {user ? 'Launch App' : 'Quick Start'}
           </Link>
         </div>
       </header>
