@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import HeaderLogo from '@/components/shared/HeaderLogo';
@@ -12,23 +12,25 @@ import type { RunningProfilerFormPayload } from '@/components/running/RunningPro
 import type { RunningMetabolicProfile } from '@/lib/engine/runningTypes';
 import { useRunningStore } from '@/lib/store/runningStore';
 import { createClient } from '@/lib/supabase/client';
-import type { SubscriptionTier } from '@/lib/types';
 import {
   saveRunningProfileAction,
   getSavedRunningProfileAction,
 } from '@/app/actions/profile';
 import type { SavedRunningProfileData } from '@/app/actions/profile';
 import { RUNNING_MODEL_VERSION } from '@/lib/engine/runningMetabolicEngine';
+import { savePendingResult, readPendingResult, clearPendingResult } from '@/lib/pendingResult';
 
 export default function RunningProfilerPage() {
   const router = useRouter();
   const { prefillFromRunningProfile } = useRunningStore();
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [tier,       setTier]       = useState<SubscriptionTier>('free');
   const [loading,    setLoading]    = useState(false);
   const [error,      setError]      = useState<string | null>(null);
   const [profile,    setProfile]    = useState<RunningMetabolicProfile | null>(null);
+  const lastPayloadRef = useRef<RunningProfilerFormPayload | null>(null);
+  const pendingRestoreRef = useRef(false);
+  const [restoredBanner, setRestoredBanner] = useState(false);
 
   // Athlete context — captured from form, forwarded to fueling prefill
   const [athleteName, setAthleteName] = useState<string | undefined>();
@@ -41,25 +43,43 @@ export default function RunningProfilerPage() {
   const [formKey,          setFormKey]          = useState(0);
   const [saveState,        setSaveState]        = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
-  const isPro         = tier === 'pro';
   const hasSavedProfile = !!savedProfileData;
 
   useEffect(() => {
-    createClient().auth.getSession().then(({ data: { session } }) => {
+    createClient().auth.getSession().then(async ({ data: { session } }) => {
       setIsLoggedIn(!!session);
+      if (!session) return;
+
+      await getSavedRunningProfileAction()
+        .then(d => { if (d) setSavedProfileData(d); })
+        .catch(() => {});
+
+      // Restore a result stashed before signup (see handleCreateAccount below).
+      const pending = readPendingResult<RunningProfilerFormPayload>('running-profile');
+      if (pending) {
+        clearPendingResult();
+        pendingRestoreRef.current = true;
+        handleCalculate(pending);
+      }
     });
-
-    fetch('/api/me')
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d?.tier === 'pro') setTier('pro'); })
-      .catch(() => {});
-
-    getSavedRunningProfileAction()
-      .then(d => { if (d) setSavedProfileData(d); })
-      .catch(() => {});
   }, []);
 
+  // Once the restored calculation lands, save it automatically and confirm.
+  useEffect(() => {
+    if (!pendingRestoreRef.current || !profile) return;
+    pendingRestoreRef.current = false;
+    handleSaveToProfile().then(() => setRestoredBanner(true));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile]);
+
+  function handleCreateAccount() {
+    if (!lastPayloadRef.current) return;
+    savePendingResult('running-profile', lastPayloadRef.current);
+    router.push('/login?mode=signup&redirect=/calculator/running-profiler');
+  }
+
   async function handleCalculate(payload: RunningProfilerFormPayload) {
+    lastPayloadRef.current = payload;
     setLoading(true);
     setError(null);
     setAthleteName(payload.name);
@@ -146,6 +166,13 @@ export default function RunningProfilerPage() {
   return (
     <div className="min-h-screen bg-gray-50">
 
+      {/* Restored-after-signup confirmation */}
+      {restoredBanner && (
+        <div className="bg-green-100 text-green-800 text-sm font-semibold text-center py-2 px-4">
+          ✓ Welcome — your running profile has been restored and saved to your account.
+        </div>
+      )}
+
       {/* Header */}
       <header className="bg-white px-4 sm:px-6 py-3 flex items-center gap-3 sm:gap-4 shadow-sm border-b border-gray-100">
         <HeaderLogo href="/calculator/running-profiler" height={28} width={140} />
@@ -154,11 +181,6 @@ export default function RunningProfilerPage() {
           <p className="text-sm font-bold text-gray-800 leading-tight">Running Profiler</p>
           <p className="text-xs text-gray-400">VO2max · VLamax · LT2 · LT1</p>
         </div>
-        {isPro ? (
-          <span className="text-xs font-bold bg-amber-100 text-amber-700 px-3 py-1 rounded-full">✓ PRO</span>
-        ) : (
-          <span className="text-xs font-bold bg-green-100 text-green-700 px-3 py-1 rounded-full">FREE</span>
-        )}
         <span className="hidden sm:block"><AllToolsSwitcher active="running-profiler" /></span>
         <div className="ml-auto flex items-center gap-3">
           <Link href="/support" className="text-xs text-gray-400 hover:text-gray-700 transition hidden sm:inline">Support</Link>
@@ -293,13 +315,13 @@ export default function RunningProfilerPage() {
           {profile ? (
             <RunningProfilerResults
               profile={profile}
-              isPro={isPro}
               onSendToFueling={handleSendToFueling}
               name={athleteName}
               onSaveToProfile={isLoggedIn ? handleSaveToProfile : undefined}
               saveState={saveState}
               hasSavedProfile={hasSavedProfile}
               isLoggedIn={isLoggedIn}
+              onCreateAccount={handleCreateAccount}
             />
           ) : (
             <div className="min-h-[40vh] flex flex-col items-center justify-center text-gray-400 gap-3">

@@ -11,6 +11,7 @@ import FuelingPrintView from './FuelingPrintView';
 import InfoTooltip from '@/components/shared/InfoTooltip';
 import { exportToPdf } from '@/lib/pdf/exportPdf';
 import { ZONE_DOT, ZONE_ROW_BG } from '@/lib/zones/zoneDefinitions';
+import SaveAccountPrompt from '@/components/SaveAccountPrompt';
 
 // Maps cycling zone short names to shared ZONE_DOT / ZONE_ROW_BG keys
 const CYCLING_ZONE_STYLE: Record<string, string> = {
@@ -29,6 +30,8 @@ interface Props {
   plannedGph:      number;
   effectivePowerW: number;   // form target OR live override from strategy controls
   onPowerChange:   (w: number) => void;
+  isLoggedIn?:      boolean;
+  onCreateAccount?: () => void;
 }
 
 /** Interpolate CHO g/h from the dense substrate series for an arbitrary watt target. */
@@ -102,6 +105,7 @@ function buildDisplayZones(lt1Watts: number, mlssWatts: number): DisplayZoneDef[
 
 export default function FuelingResults({
   result, strategy, onStrategy, plannedGph, effectivePowerW, onPowerChange,
+  isLoggedIn = false, onCreateAccount,
 }: Props) {
   const { fatmaxPctMLSS, ge, inputs } = result;
 
@@ -194,6 +198,15 @@ export default function FuelingResults({
           <p className="text-xs text-gray-400">{uRate}</p>
         </div>
       </div>
+
+      {/* ── Save-account offer — logged-out users only ──────────────── */}
+      {!isLoggedIn && onCreateAccount && (
+        <SaveAccountPrompt
+          headline="Save this fueling plan"
+          body="Create a free account and we'll keep this calculation on file — no need to re-enter your numbers next time."
+          onCreateAccount={onCreateAccount}
+        />
+      )}
 
       {/* Substrate curve chart */}
       <SubstrateCurveChart
@@ -340,19 +353,24 @@ export default function FuelingResults({
         </p>
       </div>
 
-      {/* Hidden print view — off-screen, always rendered so html2canvas can capture it */}
+      {/* Hidden print view — off-screen, always rendered so html-to-image can capture it.
+          The captured node (printRef) must NOT itself carry position: fixed/absolute —
+          html-to-image clones it into an SVG foreignObject, which has no viewport for
+          "fixed" to resolve against, so the whole capture rasterizes as blank. The
+          off-screen hiding lives on this outer wrapper instead, which isn't captured. */}
       <div
-        ref={printRef}
-        style={{ position: 'fixed', top: 0, left: -9999, width: 794, pointerEvents: 'none', zIndex: -1 }}
+        style={{ position: 'fixed', top: 0, left: -9999, pointerEvents: 'none', zIndex: -1 }}
         aria-hidden="true"
       >
-        <FuelingPrintView
-          result={result}
-          strategy={strategy}
-          plannedGph={plannedGph}
-          requiredGph={liveRequiredGph}
-          effectivePowerW={effectivePowerW}
-        />
+        <div ref={printRef} style={{ width: 794 }}>
+          <FuelingPrintView
+            result={result}
+            strategy={strategy}
+            plannedGph={plannedGph}
+            requiredGph={liveRequiredGph}
+            effectivePowerW={effectivePowerW}
+          />
+        </div>
       </div>
 
     </div>

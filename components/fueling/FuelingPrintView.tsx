@@ -24,7 +24,7 @@
 
 import { useMemo, useState, useEffect, useRef } from 'react';
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, ReferenceLine, ResponsiveContainer,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, ReferenceLine,
 } from 'recharts';
 import type { FuelingResult, DenseSubstratePoint } from '@/lib/types';
 import type { FuelingStrategy, CarbRatio } from '@/lib/engine/fuelingStrategy';
@@ -186,32 +186,39 @@ function SubstrateChartPrint({ series, mlssWatts, lt1Watts, targetW, fatmaxW }: 
 
   return (
     <div style={{ height: 210 }}>
-      <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={chartData} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-          <XAxis
-            dataKey="watts" type="number" domain={['dataMin', 'dataMax']}
-            tick={{ fontSize: 9 }}
-            label={{ value: 'W', position: 'insideBottomRight', offset: -5, fontSize: 8 }}
-          />
-          <YAxis
-            tick={{ fontSize: 9 }}
-            label={{ value: 'kcal/h', angle: -90, position: 'insideLeft', fontSize: 8 }}
-          />
-          <Area type="monotone" dataKey="fat" stackId="1" stroke="#f59e0b" fill="#fef3c7" strokeWidth={1.5} dot={false} />
-          <Area type="monotone" dataKey="cho" stackId="1" stroke="#3b82f6" fill="#dbeafe" strokeWidth={1.5} dot={false} />
-          {lt1Watts > 0 && (
-            <ReferenceLine x={Math.round(lt1Watts)} stroke="#27ae60" strokeDasharray="4 2"
-              label={{ value: 'LT1', fontSize: 8, fill: '#27ae60' }} />
-          )}
-          <ReferenceLine x={Math.round(mlssWatts)} stroke="#f57c00" strokeDasharray="4 2"
-            label={{ value: 'LT2', fontSize: 8, fill: '#f57c00' }} />
-          <ReferenceLine x={fatmaxW} stroke="#f59e0b" strokeDasharray="2 2"
-            label={{ value: 'FATmax', fontSize: 7, fill: '#b45309' }} />
-          <ReferenceLine x={targetW} stroke="#7c3aed" strokeDasharray="4 2"
-            label={{ value: 'Target', fontSize: 8, fill: '#7c3aed' }} />
-        </AreaChart>
-      </ResponsiveContainer>
+      {/* Explicit pixel width/height, not ResponsiveContainer: this view is
+          captured off-screen (position: fixed; left: -9999px, see
+          FuelingResults.tsx's printRef) for PDF export, and
+          ResponsiveContainer's ResizeObserver-based measurement never
+          resolves off-screen — it gets stuck reporting width/height as -1,
+          producing a malformed SVG that breaks the whole html-to-image
+          capture into a blank canvas. This view's width is always exactly
+          794px minus fixed padding (PAD_H), so there's nothing to measure
+          at runtime — pass the known size directly. */}
+      <AreaChart width={698} height={210} data={chartData} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+        <XAxis
+          dataKey="watts" type="number" domain={['dataMin', 'dataMax']}
+          tick={{ fontSize: 9 }}
+          label={{ value: 'W', position: 'insideBottomRight', offset: -5, fontSize: 8 }}
+        />
+        <YAxis
+          tick={{ fontSize: 9 }}
+          label={{ value: 'kcal/h', angle: -90, position: 'insideLeft', fontSize: 8 }}
+        />
+        <Area type="monotone" dataKey="fat" stackId="1" stroke="#f59e0b" fill="#fef3c7" strokeWidth={1.5} dot={false} />
+        <Area type="monotone" dataKey="cho" stackId="1" stroke="#3b82f6" fill="#dbeafe" strokeWidth={1.5} dot={false} />
+        {lt1Watts > 0 && (
+          <ReferenceLine x={Math.round(lt1Watts)} stroke="#27ae60" strokeDasharray="4 2"
+            label={{ value: 'LT1', fontSize: 8, fill: '#27ae60' }} />
+        )}
+        <ReferenceLine x={Math.round(mlssWatts)} stroke="#f57c00" strokeDasharray="4 2"
+          label={{ value: 'LT2', fontSize: 8, fill: '#f57c00' }} />
+        <ReferenceLine x={fatmaxW} stroke="#f59e0b" strokeDasharray="2 2"
+          label={{ value: 'FATmax', fontSize: 7, fill: '#b45309' }} />
+        <ReferenceLine x={targetW} stroke="#7c3aed" strokeDasharray="4 2"
+          label={{ value: 'Target', fontSize: 8, fill: '#7c3aed' }} />
+      </AreaChart>
     </div>
   );
 }

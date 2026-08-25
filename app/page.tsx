@@ -53,8 +53,9 @@ export default async function HomePage() {
         </h1>
 
         <p className="relative z-20 text-lg opacity-70 max-w-2xl leading-relaxed">
-          A structured field test — on the bike or on foot. Estimate your metabolic profile.
-          Turn it into sport-specific training zones, substrate utilisation models, and race-day fueling strategy.
+          A structured field test — on the bike or on foot, no account needed. Estimate your
+          metabolic profile. Turn it into sport-specific training zones, substrate utilisation
+          models, and race-day fueling strategy.
         </p>
 
         <div className="relative z-20 flex gap-4 flex-wrap justify-center">
@@ -119,13 +120,13 @@ export default async function HomePage() {
             </div>
           </div>
 
-          {/* Step 2 — Pro */}
+          {/* Step 2 — Understand */}
           <div className="bg-gradient-to-br from-violet-600 to-blue-600 rounded-2xl p-8 shadow-2xl ring-2 ring-violet-300/30 flex flex-col">
             <div className="flex items-center gap-3 mb-5">
-              <span className="w-7 h-7 rounded-full bg-amber-400 text-amber-900 font-black text-xs flex items-center justify-center shrink-0">2</span>
-              <span className="text-xs font-black uppercase tracking-widest text-amber-300">Pro</span>
+              <span className="w-7 h-7 rounded-full bg-white/20 text-white font-black text-xs flex items-center justify-center shrink-0">2</span>
+              <span className="text-xs font-black uppercase tracking-widest text-violet-200">Understand</span>
             </div>
-            <h3 className="text-xl font-black mb-2">Unlock your physiology</h3>
+            <h3 className="text-xl font-black mb-2">See your physiology</h3>
             <p className="text-sm opacity-80 mb-5">
               Go beyond raw numbers. See where your aerobic and anaerobic thresholds actually sit.
             </p>
@@ -134,10 +135,10 @@ export default async function HomePage() {
                 'LT1 — aerobic threshold',
                 'LT2 — anaerobic threshold',
                 'Personalised training zones',
-                'Track changes after every block',
+                'Export your profile as a PDF',
               ].map(f => (
                 <li key={f} className="flex items-center gap-2">
-                  <span className="text-amber-300 shrink-0">✓</span> {f}
+                  <span className="text-violet-200 shrink-0">✓</span> {f}
                 </li>
               ))}
             </ul>
@@ -145,18 +146,18 @@ export default async function HomePage() {
               "Train with precision instead of guesswork"
             </p>
             <Link
-              href="/pricing"
-              className="block text-center py-3 bg-amber-400 text-amber-900 font-black rounded-xl hover:bg-amber-300 transition"
+              href="/calculator/profiler"
+              className="block text-center py-3 bg-white text-violet-700 font-black rounded-xl hover:bg-violet-50 transition"
             >
-              Upgrade to Pro →
+              See your thresholds →
             </Link>
           </div>
 
           {/* Step 3 — Fueling */}
           <div className="bg-white/10 backdrop-blur border border-white/20 rounded-2xl p-8 flex flex-col">
             <div className="flex items-center gap-3 mb-5">
-              <span className="w-7 h-7 rounded-full bg-violet-400 text-violet-900 font-black text-xs flex items-center justify-center shrink-0">3</span>
-              <span className="text-xs font-black uppercase tracking-widest text-violet-300">Fueling</span>
+              <span className="w-7 h-7 rounded-full bg-blue-400 text-blue-900 font-black text-xs flex items-center justify-center shrink-0">3</span>
+              <span className="text-xs font-black uppercase tracking-widest text-blue-300">Fuel</span>
             </div>
             <h3 className="text-xl font-black mb-2">Model your fueling strategy</h3>
             <p className="text-sm opacity-60 mb-5">
@@ -170,21 +171,18 @@ export default async function HomePage() {
                 'Complete race fueling plan',
               ].map(f => (
                 <li key={f} className="flex items-center gap-2">
-                  <span className="text-violet-300 shrink-0">✓</span> {f}
+                  <span className="text-blue-300 shrink-0">✓</span> {f}
                 </li>
               ))}
             </ul>
             <p className="text-xs opacity-50 italic mb-5">
               "Fuel the work your body actually requires"
             </p>
-            <p className="text-xs font-bold text-amber-300 uppercase tracking-wider mb-2">
-              Available with Pro
-            </p>
             <Link
-              href="/pricing"
+              href="/calculator/fueling"
               className="block text-center py-3 bg-white/20 border border-white/30 text-white font-bold rounded-xl hover:bg-white/30 transition"
             >
-              Included with Pro →
+              Open the fueling calculator →
             </Link>
           </div>
 

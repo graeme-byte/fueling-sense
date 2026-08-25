@@ -10,7 +10,7 @@
  */
 
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, ReferenceLine, ResponsiveContainer,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, ReferenceLine,
 } from 'recharts';
 import { classifyVO2max, classifyVlamax, classifyLT2Wkg } from '@/lib/benchmarks/athleteBenchmarks';
 import type { MetabolicV06Result } from '@/lib/engine/metabolicModelV06';
@@ -22,7 +22,6 @@ interface Props {
   sex?:           'Male' | 'Female';
   age?:           number;
   dietType?:      string;
-  isPro:          boolean;
   laData:         { w: number; la: number }[];
   zones:          TrainingZone[];
   phenotypeLabel: 'Aerobic' | 'Mixed' | 'Glycolytic';
@@ -42,7 +41,7 @@ const S = {
 };
 
 export default function ProfilerPrintView({
-  profile, name, sex, age, dietType, isPro, laData, zones, phenotypeLabel,
+  profile, name, sex, age, dietType, laData, zones, phenotypeLabel,
 }: Props) {
   const { vlamax, vo2max, mlssWatts, lt1Watts } = profile.outputs;
   const { weightKg, bodyFatPct } = profile.inputs;
@@ -66,8 +65,8 @@ export default function ProfilerPrintView({
   const metrics = [
     { label: 'VLamax',  value: vlamax.toFixed(3),             unit: 'mmol/L/s',  border: '#ef4444' },
     { label: 'VO\u2082max', value: vo2max.toFixed(1),        unit: 'ml/kg/min', border: '#3b82f6' },
-    { label: 'LT1',     value: isPro ? String(Math.round(lt1Watts))   : '—', unit: isPro ? 'W' : 'Pro only', border: '#22c55e' },
-    { label: 'LT2',     value: isPro ? String(Math.round(mlssWatts))  : '—', unit: isPro ? 'W' : 'Pro only', border: '#f97316' },
+    { label: 'LT1',     value: String(Math.round(lt1Watts)),  unit: 'W', border: '#22c55e' },
+    { label: 'LT2',     value: String(Math.round(mlssWatts)), unit: 'W', border: '#f97316' },
   ];
 
   const benchmarks = [
@@ -143,45 +142,42 @@ export default function ProfilerPrintView({
           <div style={S.sectionLabel}>Lactate Accumulation Curve</div>
           <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: '12px 8px' }}>
             <div style={{ height: 200 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={laData} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis
-                    dataKey="w" type="number" domain={['dataMin', 'dataMax']}
-                    tick={{ fontSize: 9 }}
-                    label={{ value: 'W', position: 'insideBottomRight', offset: -5, fontSize: 8 }}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 9 }} domain={[0.5, 'auto']}
-                    label={{ value: 'mmol/L', angle: -90, position: 'insideLeft', fontSize: 8 }}
-                  />
-                  {isPro && (
-                    <ReferenceLine
-                      x={Math.round(lt1Watts)} stroke="#27ae60" strokeDasharray="4 4"
-                      label={{ value: 'LT1', position: 'insideTopRight', fontSize: 8, fill: '#27ae60' }}
-                    />
-                  )}
-                  {isPro && (
-                    <ReferenceLine
-                      x={Math.round(mlssWatts)} stroke="#f57c00" strokeDasharray="4 4"
-                      label={{ value: 'LT2', position: 'insideTopRight', fontSize: 8, fill: '#f57c00' }}
-                    />
-                  )}
-                  <Line dataKey="la" stroke="#e53935" strokeWidth={2} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
+              {/* Explicit pixel width/height, not ResponsiveContainer: this view is
+                  captured off-screen (position: fixed; left: -9999px) for PDF export,
+                  and ResponsiveContainer's ResizeObserver-based measurement never
+                  resolves off-screen — it gets stuck reporting width/height as -1,
+                  which produces a malformed SVG that breaks the whole html-to-image
+                  capture into a blank canvas. This view's width is always exactly
+                  794px (S.page.width) minus fixed padding, so there's nothing to
+                  measure at runtime — pass the known size directly. */}
+              <LineChart width={698} height={200} data={laData} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis
+                  dataKey="w" type="number" domain={['dataMin', 'dataMax']}
+                  tick={{ fontSize: 9 }}
+                  label={{ value: 'W', position: 'insideBottomRight', offset: -5, fontSize: 8 }}
+                />
+                <YAxis
+                  tick={{ fontSize: 9 }} domain={[0.5, 'auto']}
+                  label={{ value: 'mmol/L', angle: -90, position: 'insideLeft', fontSize: 8 }}
+                />
+                <ReferenceLine
+                  x={Math.round(lt1Watts)} stroke="#27ae60" strokeDasharray="4 4"
+                  label={{ value: 'LT1', position: 'insideTopRight', fontSize: 8, fill: '#27ae60' }}
+                />
+                <ReferenceLine
+                  x={Math.round(mlssWatts)} stroke="#f57c00" strokeDasharray="4 4"
+                  label={{ value: 'LT2', position: 'insideTopRight', fontSize: 8, fill: '#f57c00' }}
+                />
+                <Line dataKey="la" stroke="#e53935" strokeWidth={2} dot={false} />
+              </LineChart>
             </div>
-            {!isPro && (
-              <p style={{ fontSize: 9, textAlign: 'center', color: '#9ca3af', marginTop: 4 }}>
-                LT1 and LT2 markers available on Pro
-              </p>
-            )}
           </div>
         </div>
       )}
 
       {/* ── Training zones ── */}
-      {isPro && zones.length > 0 && (
+      {zones.length > 0 && (
         <div style={{ marginBottom: 20 }}>
           <div style={S.sectionLabel}>Training Zones</div>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>

@@ -12,6 +12,7 @@ import { ZONE_DOT, ZONE_ROW_BG } from '@/lib/zones/zoneDefinitions';
 import { buildRunningProfilerZones } from '@/lib/engine/runningZones';
 import { substrateAtSpeed, adjustEconomyForSpeed, formatPace } from '@/lib/engine/runningMetabolicEngine';
 import type { SubstrateAnchors } from '@/lib/engine/runningMetabolicEngine';
+import SaveAccountPrompt from '@/components/SaveAccountPrompt';
 
 const FREQ_OPTIONS = [10, 15, 20, 30, 45, 60] as const;
 
@@ -31,6 +32,8 @@ interface Props {
   gphGels:            number;
   gphDrinks:          number;
   gphSolids:          number;
+  isLoggedIn?:        boolean;
+  onCreateAccount?:   () => void;
 }
 
 const LEVEL_STYLES = {
@@ -129,6 +132,7 @@ function RatioSelect({ value, onChange }: { value: RunCarbRatio | undefined; onC
 export default function RunningFuelingResults({
   result, mlssSpeedMs, lt1SpeedMs, fatmaxSpeedMs, vlamaxMmolLS, vVO2maxSpeedMs, massKg,
   name, eventType, userPlannedCHO, fuelConfig, onFuelConfigChange, gphGels, gphDrinks, gphSolids,
+  isLoggedIn = false, onCreateAccount,
 }: Props) {
   // showPlanned: true only when the user explicitly entered a planned CHO value
   const showPlanned = userPlannedCHO != null && userPlannedCHO > 0;
@@ -265,6 +269,15 @@ export default function RunningFuelingResults({
           <p className="text-xs text-gray-400">g/h modeled demand</p>
         </div>
       </div>
+
+      {/* ── Save-account offer — logged-out users only ──────────────── */}
+      {!isLoggedIn && onCreateAccount && (
+        <SaveAccountPrompt
+          headline="Save this fueling plan"
+          body="Create a free account and we'll keep this calculation on file — no need to re-enter your numbers next time."
+          onCreateAccount={onCreateAccount}
+        />
+      )}
 
       {/* ── Substrate curve ──────────────────────────────────────────────────── */}
       <div className="bg-white rounded-xl border border-gray-100 p-4">

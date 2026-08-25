@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import HeaderLogo from '@/components/shared/HeaderLogo';
 import { useFuelingStore } from '@/lib/store/fuelingStore';
@@ -22,22 +22,31 @@ import { computeRecommendedTarget } from '@/lib/engine/fuelingEngine';
 import type { FuelingInputs, Sex, DietType } from '@/lib/types';
 import { getSavedProfileAction } from '@/app/actions/profile';
 import type { SavedProfileData } from '@/app/actions/profile';
+import { savePendingResult, readPendingResult, clearPendingResult } from '@/lib/pendingResult';
+
+interface PendingFuelingPayload {
+  inputs: FuelingInputs;
+  config: FuelSourceConfig;
+}
 
 export default function FuelingCalculatorPage() {
+  const router = useRouter();
   const { result, loading, setResult, setLoading, setError } = useFuelingStore();
-  const searchParams = useSearchParams();
   const [isLoggedIn,       setIsLoggedIn]       = useState(false);
-  const [tier,             setTier]             = useState<'free' | 'pro'>('free');
   const [strategy,         setStrategy]         = useState<FuelingStrategy>({ gels: [], drinks: [], solids: [] });
   const [livePowerW,       setLivePowerW]       = useState<number | null>(null);
   const [savedProfile,     setSavedProfile]     = useState<SavedProfileData | null>(null);
   const [profilePrefilled, setProfilePrefilled] = useState(false);
   const [fuelFormKey,      setFuelFormKey]      = useState(0);
+  const [restoredBanner,   setRestoredBanner]   = useState(false);
 
   // Holds the fuel source config submitted with the last calculation — used to seed
   // the default strategy when the API result arrives. Stored as a ref so it's
   // synchronously available in the result useEffect without closure-staleness risk.
   const fuelConfigRef = useRef<FuelSourceConfig>(defaultConfigForEventType('Cycling 2–4h'));
+  // Last submitted inputs — stashed if the user creates an account from this
+  // result, so the signup round trip can rerun the exact same calculation.
+  const lastInputsRef = useRef<FuelingInputs | null>(null);
 
   // Derived: planned CHO g/h (recalculated every render)
   const plannedGph = strategyToChoPerHour(strategy);
@@ -49,9 +58,17 @@ export default function FuelingCalculatorPage() {
     createClient().auth.getSession().then(async ({ data: { session } }) => {
       setIsLoggedIn(!!session);
       if (!session) return;
-      fetch('/api/me').then(r => r.ok ? r.json() : null).then(d => {
-        if (d?.tier === 'pro') setTier('pro');
-      });
+
+      // Restore a result stashed before signup (see handleCreateAccount below).
+      // Checked ahead of the saved-profile load below since a freshly-signed-up
+      // user won't have a saved profile yet — that guard must not skip this.
+      const pending = readPendingResult<PendingFuelingPayload>('cycling-fueling');
+      if (pending) {
+        clearPendingResult();
+        await handleCalculate(pending.inputs, pending.config);
+        setRestoredBanner(true);
+      }
+
       // Load saved profile and prefill the form if it exists and no INSCYD prefill is active
       const sp = await getSavedProfileAction();
       if (!sp) return;
@@ -77,6 +94,15 @@ export default function FuelingCalculatorPage() {
       }
     });
   }, []);
+
+  function handleCreateAccount() {
+    if (!lastInputsRef.current) return;
+    savePendingResult<PendingFuelingPayload>('cycling-fueling', {
+      inputs: lastInputsRef.current,
+      config: fuelConfigRef.current,
+    });
+    router.push('/login?mode=signup&redirect=/calculator/fueling');
+  }
 
   // Seed strategy from user's fuel source config + reset live power when a new result arrives
   useEffect(() => {
@@ -111,27 +137,18 @@ export default function FuelingCalculatorPage() {
     setFuelFormKey(k => k + 1);
   }
 
-  const justUpgraded = searchParams.get('upgraded') === '1';
-
   async function handleCalculate(inputs: FuelingInputs, config: FuelSourceConfig) {
     fuelConfigRef.current = config;
+    lastInputsRef.current = inputs;
     setLoading(true);
     try {
       const res = await fetch('/api/fueling', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ ...inputs, save: true }),
+        body:    JSON.stringify({ ...inputs, save: isLoggedIn }),
       });
       const data = await res.json();
 
-      if (res.status === 403 && data.code === 'UPGRADE_REQUIRED') {
-        if (justUpgraded) {
-          setError('Your subscription is still activating — wait a few seconds and try again.');
-        } else {
-          window.location.href = '/pricing';
-        }
-        return;
-      }
       if (!res.ok) {
         const err = data.error;
         setError(typeof err === 'string' ? err : 'Invalid input — please check your values');
@@ -146,10 +163,10 @@ export default function FuelingCalculatorPage() {
   return (
     <div className="min-h-screen bg-gray-50">
 
-      {/* Upgrade success banner */}
-      {justUpgraded && (
-        <div className="bg-amber-400 text-amber-900 text-sm font-semibold text-center py-2 px-4">
-          Welcome to Pro — you&apos;re all set. Start below.
+      {/* Restored-after-signup confirmation */}
+      {restoredBanner && (
+        <div className="bg-green-100 text-green-800 text-sm font-semibold text-center py-2 px-4">
+          ✓ Welcome — your fueling plan has been restored and saved to your account.
         </div>
       )}
 
@@ -161,7 +178,6 @@ export default function FuelingCalculatorPage() {
           <p className="text-sm font-bold text-gray-800 leading-tight">Cycling Fueling</p>
           <p className="text-xs text-gray-400">Substrate utilization · CHO requirements · Fueling strategy</p>
         </div>
-        <span className="text-xs font-bold bg-amber-100 text-amber-700 px-3 py-1 rounded-full">PRO</span>
         <span className="hidden sm:block"><AllToolsSwitcher active="cycling-fueling" /></span>
         <div className="ml-auto flex items-center gap-3">
           <Link href="/support" className="text-xs text-gray-400 hover:text-gray-700 transition hidden sm:inline">Support</Link>
@@ -207,7 +223,7 @@ export default function FuelingCalculatorPage() {
         {/* Right: Results panel */}
         <main className="flex-1 p-5">
           <div className="hidden lg:block">
-            <GettingStartedPanel context="fueling" isProUser={tier === 'pro'} />
+            <GettingStartedPanel context="fueling" />
           </div>
           {result ? (
             <FuelingResults
@@ -217,6 +233,8 @@ export default function FuelingCalculatorPage() {
               plannedGph={plannedGph}
               effectivePowerW={effectivePowerW}
               onPowerChange={setLivePowerW}
+              isLoggedIn={isLoggedIn}
+              onCreateAccount={handleCreateAccount}
             />
           ) : (
             <div className="min-h-[40vh] flex flex-col items-center justify-center text-gray-400 gap-3">

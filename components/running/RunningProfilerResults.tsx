@@ -12,16 +12,17 @@ import RunningZonesTable from './RunningZonesTable';
 import InfoTooltip from '@/components/shared/InfoTooltip';
 import Link from 'next/link';
 import { exportRunningProfilePDF } from '@/lib/pdf/exportRunningProfile';
+import SaveAccountPrompt from '@/components/SaveAccountPrompt';
 
 interface Props {
   profile:          RunningMetabolicProfile;
-  isPro:            boolean;
   onSendToFueling:  () => void;
   name?:            string;
   onSaveToProfile?: () => void;
   saveState?:       'idle' | 'saving' | 'saved' | 'error';
   hasSavedProfile?: boolean;
   isLoggedIn?:      boolean;
+  onCreateAccount?: () => void;
 }
 
 function MetricCard({
@@ -35,16 +36,6 @@ function MetricCard({
       </p>
       <p className="text-xl font-black text-gray-900 mt-1">{value}</p>
       {unit && <p className="text-xs text-gray-400">{unit}</p>}
-    </div>
-  );
-}
-
-function LockedCard({ label, hint }: { label: string; hint: string }) {
-  return (
-    <div className="bg-white rounded-xl p-3 border-l-4 border-violet-200 shadow-sm">
-      <p className="text-xs font-bold uppercase tracking-wider text-gray-400">{label}</p>
-      <p className="text-xl font-black text-violet-200 mt-1">––</p>
-      <p className="text-xs text-violet-400 font-semibold">Pro · {hint}</p>
     </div>
   );
 }
@@ -222,8 +213,9 @@ function LactateCurveCard(props: Omit<LactateChartProps, 'height'>) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function RunningProfilerResults({
-  profile, isPro, onSendToFueling, name,
+  profile, onSendToFueling, name,
   onSaveToProfile, saveState = 'idle', hasSavedProfile = false, isLoggedIn = false,
+  onCreateAccount,
 }: Props) {
   const { primary, derived, classification, confidenceFlags } = profile;
   const [showZoneDetails, setShowZoneDetails] = useState(false);
@@ -242,11 +234,11 @@ export default function RunningProfilerResults({
     setExporting(true);
     try {
       const athleteName = name && name !== 'Athlete' ? name : 'Athlete';
-      exportRunningProfilePDF(profile, athleteName, isPro, profilerZones);
+      exportRunningProfilePDF(profile, athleteName, profilerZones);
     } finally {
       setExporting(false);
     }
-  }, [name, profile, isPro, profilerZones]);
+  }, [name, profile, profilerZones]);
 
   const errorFlags = confidenceFlags.filter(f => f.level === 'error');
   const warnFlags  = confidenceFlags.filter(f => f.level === 'warn');
@@ -282,21 +274,12 @@ export default function RunningProfilerResults({
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {isPro ? (
-            <button
-              onClick={onSendToFueling}
-              className="px-4 py-2 bg-emerald-600 text-white text-sm font-bold rounded-xl hover:bg-emerald-700 transition"
-            >
-              Open Running Fueling →
-            </button>
-          ) : (
-            <Link
-              href="/pricing"
-              className="px-4 py-2 bg-amber-100 text-amber-800 text-sm font-bold rounded-xl hover:bg-amber-200 transition"
-            >
-              Upgrade to Pro for Fueling →
-            </Link>
-          )}
+          <button
+            onClick={onSendToFueling}
+            className="px-4 py-2 bg-emerald-600 text-white text-sm font-bold rounded-xl hover:bg-emerald-700 transition"
+          >
+            Open Running Fueling →
+          </button>
           <button
             onClick={handleExportPdf}
             disabled={exporting}
@@ -327,16 +310,8 @@ export default function RunningProfilerResults({
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
         <MetricCard label="VLamax" value={primary.vlamaxMmolLS.toFixed(3)} unit="mmol/L/s" color="border-red-500" tooltipTerm="VLamax" />
         <MetricCard label="VO2max" value={primary.vo2maxMlKgMin.toFixed(1)} unit="mL/kg/min" color="border-blue-500" tooltipTerm="VO2max" />
-        {isPro ? (
-          <MetricCard label="LT2 Pace" value={primary.mlssPace} unit="min/km" color="border-orange-500" tooltipTerm="LT2 Pace" />
-        ) : (
-          <LockedCard label="LT2 Pace" hint="lactate threshold 2" />
-        )}
-        {isPro ? (
-          <MetricCard label="LT1 Pace" value={primary.lt1Pace} unit="min/km" color="border-green-500" tooltipTerm="LT1 Pace" />
-        ) : (
-          <LockedCard label="LT1 Pace" hint="aerobic threshold" />
-        )}
+        <MetricCard label="LT2 Pace" value={primary.mlssPace} unit="min/km" color="border-orange-500" tooltipTerm="LT2 Pace" />
+        <MetricCard label="LT1 Pace" value={primary.lt1Pace} unit="min/km" color="border-green-500" tooltipTerm="LT1 Pace" />
         {/* Athlete type — matches bike phenotype card style */}
         <div className="bg-emerald-50 rounded-xl p-3 border border-emerald-200 shadow-sm">
           <p className="text-xs font-bold uppercase tracking-wider text-emerald-600 flex items-center gap-0.5">
@@ -348,22 +323,13 @@ export default function RunningProfilerResults({
         </div>
       </div>
 
-      {/* Pro upgrade prompt */}
-      {!isPro && (
-        <div className="bg-violet-50 border border-violet-200 rounded-xl p-4 flex items-start gap-4">
-          <div className="flex-1">
-            <p className="text-sm font-bold text-violet-900">Your thresholds are calculated — unlock them with Pro</p>
-            <p className="text-xs text-violet-700 mt-1">
-              LT1, LT2, personalised training zones, and the substrate fueling calculator are ready.
-            </p>
-          </div>
-          <Link
-            href="/pricing"
-            className="shrink-0 px-4 py-2 bg-violet-600 text-white text-xs font-black rounded-lg hover:bg-violet-700 transition"
-          >
-            Unlock →
-          </Link>
-        </div>
+      {/* ── Save-account offer — logged-out users only ──────────────── */}
+      {!isLoggedIn && onCreateAccount && (
+        <SaveAccountPrompt
+          headline="Save this profile"
+          body="Create a free account to keep this result — reload it anytime without retesting, and use it to prefill your fueling plan."
+          onCreateAccount={onCreateAccount}
+        />
       )}
 
       {/* Simulated lactate curve — replaces substrate chart on profiler page */}
@@ -377,8 +343,7 @@ export default function RunningProfilerResults({
       />
 
       {/* Training zones */}
-      {isPro ? (
-        <div className="bg-white rounded-xl border border-gray-100 p-4">
+      <div className="bg-white rounded-xl border border-gray-100 p-4">
           <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">Training Zones</h3>
           <RunningZonesTable zones={profilerZones} />
 
@@ -448,19 +413,9 @@ export default function RunningProfilerResults({
             </div>
           )}
         </div>
-      ) : (
-        <div className="bg-white rounded-xl border-l-4 border-emerald-200 p-4 shadow-sm">
-          <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">Training Zones</p>
-          <p className="text-sm text-gray-500">
-            <Link href="/pricing" className="text-emerald-600 font-semibold hover:underline">Upgrade to Pro</Link>
-            {' '}to unlock running zones with pace ranges.
-          </p>
-        </div>
-      )}
 
       {/* CTA */}
-      {isPro ? (
-        <div className="bg-gradient-to-r from-emerald-600 to-teal-600 rounded-xl p-5 text-white">
+      <div className="bg-gradient-to-r from-emerald-600 to-teal-600 rounded-xl p-5 text-white">
           <h3 className="font-bold text-base">Next: race nutrition planning</h3>
           <p className="text-sm opacity-80 mt-1">
             Use your LT2 and VLamax to model substrate oxidation and get personalised fueling recommendations for any race or session.
@@ -472,20 +427,6 @@ export default function RunningProfilerResults({
             Open Running Fueling →
           </button>
         </div>
-      ) : (
-        <div className="bg-gradient-to-r from-emerald-600 to-teal-600 rounded-xl p-5 text-white">
-          <h3 className="font-bold text-base">Get your personalised fueling plan</h3>
-          <p className="text-sm opacity-80 mt-1">
-            Pro gives you ongoing access to substrate analysis, CARB90 thresholds, and race-day fueling recommendations.
-          </p>
-          <Link
-            href="/pricing"
-            className="inline-block mt-3 px-5 py-2 bg-white text-emerald-700 font-bold rounded-lg text-sm hover:bg-emerald-50 transition"
-          >
-            See Pro plans →
-          </Link>
-        </div>
-      )}
 
       {/* Support */}
       <div className="border-t border-gray-100 pt-4 text-center">

@@ -13,13 +13,18 @@ type Mode = 'login' | 'signup' | 'forgot' | 'reset';
 function LoginForm() {
   const searchParams = useSearchParams();
   const redirectTo   = searchParams.get('redirect') ?? '/calculator/profiler';
-  const reason       = searchParams.get('reason');
 
   // Initialise to 'reset' when the user arrives back from a password-reset email.
   // The callback route passes ?type=recovery rather than relying on the
   // PASSWORD_RECOVERY auth-state event, which does not fire in PKCE flow.
   const type = searchParams.get('type');
-  const [mode,            setMode]            = useState<Mode>(type === 'recovery' ? 'reset' : 'login');
+  // ?mode=signup lands a visitor straight in the signup form — used by the
+  // "Create free account" prompt on results pages, since that click already
+  // signals intent (skips the extra "Sign up" toggle click).
+  const modeParam = searchParams.get('mode');
+  const [mode,            setMode]            = useState<Mode>(
+    type === 'recovery' ? 'reset' : modeParam === 'signup' ? 'signup' : 'login',
+  );
   const [email,           setEmail]           = useState('');
   const [password,        setPassword]        = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -55,7 +60,10 @@ function LoginForm() {
       const { error: signUpError } = await supabase.auth.signUp({
         email,
         password,
-        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+        // Carry the originating page through the confirmation link so the
+        // callback lands the user back where they started — required for the
+        // pending-result restore (lib/pendingResult.ts) to find its match.
+        options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTo)}` },
       });
       if (signUpError) { setError(signUpError.message); setLoading(false); return; }
       setSent('signup');
@@ -100,9 +108,6 @@ function LoginForm() {
           We sent a confirmation link to <strong>{email}</strong>
         </p>
         <div className="flex flex-col gap-2 text-sm">
-          <Link href="/pricing" className="text-violet-600 font-semibold hover:underline">
-            Back to pricing
-          </Link>
           <Link href="/" className="text-gray-400 hover:text-gray-600 transition">
             Back to home
           </Link>
@@ -209,11 +214,6 @@ function LoginForm() {
         <h1 className="text-2xl font-black text-gray-900">
           {mode === 'login' ? 'Sign in' : 'Create account'}
         </h1>
-        {reason === 'pro_required' && (
-          <p className="text-sm text-violet-600 mt-1 font-semibold">
-            Sign in to access the Pro Fueling Calculator
-          </p>
-        )}
       </div>
 
       <input
