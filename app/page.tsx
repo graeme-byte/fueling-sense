@@ -84,11 +84,11 @@ export default async function HomePage() {
 
         <div className="grid md:grid-cols-3 gap-6">
 
-          {/* Step 1 — Free */}
+          {/* Step 1 — Profile */}
           <div className="bg-white/10 backdrop-blur border border-white/20 rounded-2xl p-8 flex flex-col">
             <div className="flex items-center gap-3 mb-5">
               <span className="w-7 h-7 rounded-full bg-green-400 text-green-900 font-black text-xs flex items-center justify-center shrink-0">1</span>
-              <span className="text-xs font-black uppercase tracking-widest text-green-400">Free</span>
+              <span className="text-xs font-black uppercase tracking-widest text-green-400">Profile</span>
             </div>
             <h3 className="text-xl font-black mb-2">Estimate your metabolic profile</h3>
             <p className="text-sm opacity-60 mb-5">
