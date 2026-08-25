@@ -1,14 +1,16 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 
 const LS_KEY = 'fuelingSense.hideGettingStarted';
 
 interface Props {
   context: 'profiler' | 'fueling';
+  isLoggedIn?: boolean;
 }
 
-export default function GettingStartedPanel({ context }: Props) {
+export default function GettingStartedPanel({ context, isLoggedIn = false }: Props) {
   // Start hidden to avoid a flash before localStorage is read.
   const [hidden,           setHidden]           = useState(true);
   const [showInstructions, setShowInstructions] = useState(false);
@@ -87,6 +89,16 @@ export default function GettingStartedPanel({ context }: Props) {
             Take a few minutes to read our advice on data collection and entry before you start.
           </p>
         </div>
+
+        {!isLoggedIn && (
+          <div className="mt-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 leading-relaxed">
+            You&apos;re not logged in — you can run tests and see full results, but nothing is saved.{' '}
+            <Link href="/login?mode=signup" className="font-semibold underline underline-offset-2 hover:text-amber-900">
+              Log in or create a free account
+            </Link>{' '}
+            to keep your results and reload them later.
+          </div>
+        )}
 
         <button
           onClick={toggleInstructions}

@@ -47,6 +47,9 @@ export default function FuelingCalculatorPage() {
   // Last submitted inputs — stashed if the user creates an account from this
   // result, so the signup round trip can rerun the exact same calculation.
   const lastInputsRef = useRef<FuelingInputs | null>(null);
+  // A pending result restored from signup, waiting for isLoggedIn to actually
+  // be true (see the effect below) before it's run.
+  const pendingRestoreRef = useRef<PendingFuelingPayload | null>(null);
 
   // Derived: planned CHO g/h (recalculated every render)
   const plannedGph = strategyToChoPerHour(strategy);
@@ -60,13 +63,17 @@ export default function FuelingCalculatorPage() {
       if (!session) return;
 
       // Restore a result stashed before signup (see handleCreateAccount below).
+      // Stashed in a ref rather than run here directly: calling handleCalculate
+      // from this closure would still see isLoggedIn's stale pre-update value
+      // (setIsLoggedIn above doesn't apply synchronously), sending save: false
+      // for an actually-logged-in user. A separate effect below fires once
+      // isLoggedIn is true in its own fresh closure.
       // Checked ahead of the saved-profile load below since a freshly-signed-up
       // user won't have a saved profile yet — that guard must not skip this.
       const pending = readPendingResult<PendingFuelingPayload>('cycling-fueling');
       if (pending) {
         clearPendingResult();
-        await handleCalculate(pending.inputs, pending.config);
-        setRestoredBanner(true);
+        pendingRestoreRef.current = pending;
       }
 
       // Load saved profile and prefill the form if it exists and no INSCYD prefill is active
@@ -94,6 +101,16 @@ export default function FuelingCalculatorPage() {
       }
     });
   }, []);
+
+  // Fires the restored calculation only once isLoggedIn is true in this
+  // render's own closure, so handleCalculate sends save: true correctly.
+  useEffect(() => {
+    if (!isLoggedIn || !pendingRestoreRef.current) return;
+    const pending = pendingRestoreRef.current;
+    pendingRestoreRef.current = null;
+    handleCalculate(pending.inputs, pending.config).then(() => setRestoredBanner(true));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoggedIn]);
 
   function handleCreateAccount() {
     if (!lastInputsRef.current) return;
@@ -223,7 +240,7 @@ export default function FuelingCalculatorPage() {
         {/* Right: Results panel */}
         <main className="flex-1 p-5">
           <div className="hidden lg:block">
-            <GettingStartedPanel context="fueling" />
+            <GettingStartedPanel context="fueling" isLoggedIn={isLoggedIn} />
           </div>
           {result ? (
             <FuelingResults
