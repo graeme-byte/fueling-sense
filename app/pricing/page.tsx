@@ -1,4 +1,11 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
+
+export const metadata: Metadata = {
+  title: 'How Fueling Sense works · profile, zones, race fuelling',
+  description: 'Three steps: a metabolic profile from two field efforts, training zones from your thresholds, then a race fuelling plan.',
+  alternates: { canonical: '/pricing' },
+};
 
 export default function HowItWorksPage() {
   return (
