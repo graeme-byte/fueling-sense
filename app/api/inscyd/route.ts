@@ -12,7 +12,7 @@ import { z } from 'zod';
 import { runInscyd4ptSciCalculation } from '@/lib/engine/inscydEngine4pt_v05_scientific';
 import { calcTrainingZones, fitLactate, vlaNLow, vlaNHigh, ftpLow, ftpHigh } from '@/lib/engine/inscydEngine';
 import { createClient } from '@/lib/supabase/server';
-import { prisma } from '@/lib/db';
+import { prisma, ensureUserRow, describeDbError } from '@/lib/db';
 import type { InscydResult } from '@/lib/types';
 
 const InscydInputSchema = z.object({
@@ -99,6 +99,10 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      // See /api/fueling: inscyd_results.user_id is an FK to public.users, which
+      // may not yet have a row for a free-tier user.
+      await ensureUserRow(user.id, user.email);
+
       const saved = await prisma.inscydResult.create({
         data: {
           userId:           user.id,
@@ -129,7 +133,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ result, savedId });
   } catch (err: unknown) {
-    console.error('[/api/inscyd]', err);
+    console.error('[/api/inscyd]', describeDbError(err) ?? 'non-database error', err);
     const message = err instanceof Error ? err.message : 'Unknown error';
     return NextResponse.json({ error: message }, { status: 500 });
   }

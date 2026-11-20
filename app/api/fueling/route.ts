@@ -15,7 +15,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { runFuelingCalculation, deriveAthleteLevel } from '@/lib/engine/fuelingEngine';
 import { createClient } from '@/lib/supabase/server';
-import { prisma } from '@/lib/db';
+import { prisma, ensureUserRow, describeDbError } from '@/lib/db';
 
 const FuelingInputSchema = z.object({
   name:         z.string().min(1).max(100),
@@ -90,6 +90,12 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Authentication required to save results' }, { status: 401 });
       }
 
+      // Free-tier users exist in auth.users but may have no public.users row
+      // (historically only the Stripe webhook created one). fueling_results.user_id
+      // is an FK to public.users, so without this guard the insert below fails with
+      // a foreign-key violation and the request 500s.
+      await ensureUserRow(user.id, user.email);
+
       // Strip denseSubstrateSeries from the persisted blob — it is recomputable from
       // fatmaxWkg + xf + xz + mlssWatts + ge and inflates row size significantly.
       // The full result (including denseSubstrateSeries) is still returned to the UI below.
@@ -152,7 +158,10 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ result, savedId });
   } catch (err) {
-    console.error('[/api/fueling]', err);
+    // describeDbError surfaces the Prisma code (e.g. P2003 = foreign-key
+    // violation) so a 500 can be triaged from the log alone. The client
+    // response stays generic — codes and constraint names are not leaked.
+    console.error('[/api/fueling]', describeDbError(err) ?? 'non-database error', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

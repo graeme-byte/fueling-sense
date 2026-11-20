@@ -14,6 +14,7 @@ export default async function HomePage() {
       <header className="bg-white px-8 py-3 flex items-center justify-between shadow-sm">
         <HeaderLogo href={user ? '/calculator/profiler' : '/'} />
         <div className="flex items-center gap-4">
+          <Link href="/method" className="text-sm text-gray-500 hover:text-gray-800 transition">Method</Link>
           {user ? (
             <LogoutButton className="text-sm text-gray-500 hover:text-gray-800 transition" />
           ) : (

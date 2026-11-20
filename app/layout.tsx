@@ -3,6 +3,8 @@ import Link from "next/link";
 import Script from "next/script";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import JsonLd from "@/components/JsonLd";
+import FounderFooter from "@/components/FounderFooter";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,6 +17,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://www.fueling-sense.com"),
   title: "Fueling Sense — Sports Metabolic Calculator",
   description: "Science-based metabolic profiling + personalised substrate fueling recommendations for endurance athletes.",
   icons: { icon: "/favicon.ico" },
@@ -48,6 +51,7 @@ export default function RootLayout({
             `,
           }}
         />
+        <JsonLd />
         {children}
         <footer className="border-t border-gray-100 bg-gray-50 py-4 text-center text-xs text-gray-400 space-y-1">
           <div>
@@ -57,6 +61,7 @@ export default function RootLayout({
             {' · '}
             <Link href="/privacy" className="hover:text-gray-600 transition">Privacy</Link>
           </div>
+          <FounderFooter />
           <div>Fueling Sense is operated by Stewart Sports Ltd (Company No. 07426879, UK)</div>
         </footer>
       </body>
