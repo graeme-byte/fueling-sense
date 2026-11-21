@@ -1,0 +1,15 @@
+# FuelingSense
+
+> FuelingSense is a metabolic profiler and race fuelling calculator for endurance athletes. From short all-out efforts (cycling: a 20-second sprint and a 5-minute effort; running: a 20-second sprint and 3- and 6-minute efforts) and body composition it estimates VO2max, VLamax, LT1 and LT2, training zones, fat and carbohydrate use by intensity, and a race fuelling plan, without blood lactate. Cycling and running. Built by Dr Graeme Stewart (biochemist, former pro triathlete); operated by Stewart Sports Limited.
+
+## Pages
+
+- [Method](https://www.fueling-sense.com/method): protocol, model, validation and limits
+- [Cycling profiler](https://www.fueling-sense.com/calculator/profiler)
+- [Running profiler](https://www.fueling-sense.com/calculator/running-profiler)
+- [Race fuelling](https://www.fueling-sense.com/calculator/fueling)
+
+## Related
+
+- [Endurance Signals](https://endurancesignals.ai/product): coaching platform that uses the same metabolic engine
+- [Metabolic profiling without a lab](https://graemestewart.com/blog/metabolic-profile-without-a-lab): founder's explainer
