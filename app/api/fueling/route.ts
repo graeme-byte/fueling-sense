@@ -16,7 +16,6 @@ import { z } from 'zod';
 import { runFuelingCalculation, deriveAthleteLevel } from '@/lib/engine/fuelingEngine';
 import { createClient } from '@/lib/supabase/server';
 import { prisma, ensureUserRow, describeDbError } from '@/lib/db';
-import { Prisma } from '@/app/generated/prisma';
 
 const FuelingInputSchema = z.object({
   name:         z.string().min(1).max(100),
@@ -162,16 +161,8 @@ export async function POST(req: NextRequest) {
     // describeDbError surfaces the Prisma code (e.g. P2003 = foreign-key
     // violation) so a 500 can be triaged from the log alone. The client
     // response stays generic — codes and constraint names are not leaked.
-    const dbError = describeDbError(err);
-    console.error('[/api/fueling]', dbError ?? 'non-database error', err);
-    // Diagnostic: the Prisma code alone (e.g. "P2003"), never the message or
-    // meta, so the failure is identifiable from the Network tab without
-    // exposing constraint names, column names or query text.
-    const code = err instanceof Prisma.PrismaClientKnownRequestError ? err.code : undefined;
-    return NextResponse.json(
-      { error: 'Internal server error', code, kind: dbError ? 'database' : 'application' },
-      { status: 500 },
-    );
+    console.error('[/api/fueling]', describeDbError(err) ?? 'non-database error', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
