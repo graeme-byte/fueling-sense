@@ -173,6 +173,24 @@ export default function FuelingResults({
   return (
     <div className="space-y-5">
 
+      {/* Export */}
+      <div className="flex justify-end">
+        <button
+          onClick={handleExportPdf}
+          disabled={exporting}
+          className="shrink-0 flex items-center gap-1.5 px-3 py-1 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition disabled:opacity-50"
+        >
+          {exporting ? (
+            <>
+              <span className="animate-spin h-3 w-3 border border-gray-400 border-t-transparent rounded-full" />
+              Generating…
+            </>
+          ) : (
+            '↓ Export PDF'
+          )}
+        </button>
+      </div>
+
       {/* Key metrics row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-white rounded-xl p-4 border-l-4 border-amber-400 shadow-sm">
